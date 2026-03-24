@@ -41,6 +41,25 @@ export const CONSTANTS = {
       SPEED: 0.06, // Reduced from 0.12
       PUSH_FORCE: 8.0
     },
+    // Boss 4: Tatoo (Armadillo)
+    TATOO: {
+      HP: 4000,
+      SCALE: 9,
+      SPEED: 0.05,
+      PUSH_FORCE: 10,
+      SHELL_SPEED: 0.25,
+      SHELL_DURATION: 180,
+      WALK_DURATION: 240
+    },
+    // Boss 5: Taupe (Mole)
+    TAUPE: {
+      HP: 5000,
+      SCALE: 8,
+      SPEED: 0.08,
+      PUSH_FORCE: 7,
+      BURROW_DURATION: 180,
+      SURFACE_DURATION: 300
+    },
     KNOCKBACK_RESISTANCE: 0.2
   },
   POWERS: {
@@ -65,9 +84,13 @@ export const CONSTANTS = {
     BG_SCHOOL: 0x000000,
     BG_MOUNTAIN: 0x87CEEB, // Sky blue
     BG_GARDEN: 0x86efac, // Light Green
+    BG_DESERT: 0xedc9af, // Sandy beige
+    BG_VOLCANO: 0x1a0a00, // Dark volcanic red-black
     GROUND_SCHOOL: 0x2a2a30,
     GROUND_MOUNTAIN: 0xe5e7eb, // Snow/Cloud white
     GROUND_GARDEN: 0x3f6212, // Dark leafy green
+    GROUND_DESERT: 0xd4a574, // Sandy ground
+    GROUND_VOLCANO: 0x2a1a0a, // Dark volcanic rock
     GRID: 0x33333a
   },
   DEFAULT_SETTINGS: {

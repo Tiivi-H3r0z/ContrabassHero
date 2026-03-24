@@ -14,6 +14,7 @@ const App: React.FC = () => {
   const [playerHealth, setPlayerHealth] = useState(100);
   const [killCount, setKillCount] = useState(0);
   const [showBossIntro, setShowBossIntro] = useState(false);
+  const [showStageComplete, setShowStageComplete] = useState(false);
   const [character, setCharacter] = useState<CharacterType>('armand');
   
   // Special Power Animation State
@@ -26,6 +27,9 @@ const App: React.FC = () => {
   // Debug / State Logic
   const [spawnThreshold, setSpawnThreshold] = useState(CONSTANTS.BOSS.SPAWN_KILLS);
   const [isDebugMode, setIsDebugMode] = useState(false);
+
+  // Pause
+  const [isPaused, setIsPaused] = useState(false);
   
   // Force remount of GameCanvas to reset WebGL context cleanly on new game
   const [gameId, setGameId] = useState(0);
@@ -37,6 +41,7 @@ const App: React.FC = () => {
     setPlayerHealth(100);
     setKillCount(0);
     setShowBossIntro(false);
+    setShowStageComplete(false);
     setCharacter(selectedChar);
     setGameState(GameStateStatus.PLAYING);
     setGameId(prev => prev + 1); // FORCE NEW GAME INSTANCE
@@ -56,9 +61,32 @@ const App: React.FC = () => {
     setShowBossIntro(false);
   }, []);
 
+  const backToMenu = useCallback(() => {
+    setGameState(GameStateStatus.MENU);
+    setIsPaused(false);
+  }, []);
+
+  const togglePause = useCallback(() => {
+    setIsPaused(prev => !prev);
+  }, []);
+
   const handleBossEnter = useCallback(() => {
     setShowBossIntro(true);
     setTimeout(() => setShowBossIntro(false), 3500);
+  }, []);
+
+  const handleStageAdvance = useCallback(() => {
+    setShowStageComplete(true);
+    setTimeout(() => {
+      setStage(prev => prev + 1);
+      setKillCount(0);
+      setGameId(prev => prev + 1);
+      setShowStageComplete(false);
+    }, 3000);
+  }, []);
+
+  const handleVictory = useCallback(() => {
+    setGameState(GameStateStatus.VICTORY);
   }, []);
 
   const handleSpecialUsed = useCallback((name: string) => {
@@ -77,27 +105,28 @@ const App: React.FC = () => {
       setMasterVolume(newSettings.volume);
   }, []);
 
-  // Keyboard shortcut for Test Mode
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key.toLowerCase() === 't' && gameState === GameStateStatus.PLAYING) {
-            handleDebug();
-        }
+        if (gameState !== GameStateStatus.PLAYING) return;
+        if (e.key.toLowerCase() === 't') handleDebug();
+        if (e.key === 'Escape') { e.preventDefault(); togglePause(); }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleDebug, gameState]);
+  }, [handleDebug, togglePause, gameState]);
 
   return (
     <div className="relative w-full h-screen bg-gray-900 overflow-hidden">
       {gameState !== GameStateStatus.MENU && (
-        <GameCanvas 
+        <GameCanvas
           key={gameId} // Unmount/Remount on restart
-          gameState={gameState} 
+          gameState={gameState}
           character={character}
           stage={stage}
           spawnThreshold={spawnThreshold}
           isDebugMode={isDebugMode}
+          isPaused={isPaused}
           settings={settings}
           setScore={setScore}
           setWave={setWave}
@@ -107,10 +136,12 @@ const App: React.FC = () => {
           onGameOver={handleGameOver}
           onBossEnter={handleBossEnter}
           onSpecialUsed={handleSpecialUsed}
+          onStageAdvance={handleStageAdvance}
+          onVictory={handleVictory}
         />
       )}
       
-      <UIOverlay 
+      <UIOverlay
         gameState={gameState}
         score={score}
         wave={wave}
@@ -118,15 +149,19 @@ const App: React.FC = () => {
         playerHealth={playerHealth}
         killCount={killCount}
         showBossIntro={showBossIntro}
+        showStageComplete={showStageComplete}
         specialPowerName={specialPowerName}
         showSpecialAnim={showSpecialAnim}
         spawnThreshold={spawnThreshold}
         isDebugMode={isDebugMode}
         settings={settings}
+        isPaused={isPaused}
+        onTogglePause={togglePause}
         onStart={startGame}
         onRestart={restartGame}
         onDebug={handleDebug}
         onUpdateSettings={updateSettings}
+        onBackToMenu={backToMenu}
       />
     </div>
   );

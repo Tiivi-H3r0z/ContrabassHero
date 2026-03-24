@@ -22,6 +22,12 @@ import {
   createSpeechBubbleTexture,
   createDeskTexture,
   createChairTexture,
+  createTatooTexture,
+  createTatooShellTexture,
+  createTaupeTexture,
+  createDesertFloorTexture,
+  createVolcanoFloorTexture,
+  createCactusTexture,
   createChickenTexture,
   createLionTexture,
   createCatTexture,
@@ -39,6 +45,7 @@ interface GameCanvasProps {
   stage: number;
   spawnThreshold: number;
   isDebugMode: boolean;
+  isPaused: boolean;
   settings: GameSettings;
   setScore: (score: number) => void;
   setWave: (wave: number) => void;
@@ -48,14 +55,17 @@ interface GameCanvasProps {
   onGameOver: () => void;
   onBossEnter: () => void;
   onSpecialUsed: (name: string) => void;
+  onStageAdvance: () => void;
+  onVictory: () => void;
 }
 
-export const GameCanvas: React.FC<GameCanvasProps> = ({ 
-  gameState, 
+export const GameCanvas: React.FC<GameCanvasProps> = ({
+  gameState,
   character,
   stage,
   spawnThreshold,
   isDebugMode,
+  isPaused,
   settings,
   setScore, 
   setWave,
@@ -64,7 +74,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   setKillCount,
   onGameOver,
   onBossEnter,
-  onSpecialUsed
+  onSpecialUsed,
+  onStageAdvance,
+  onVictory
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(true);
@@ -93,6 +105,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const hitStopRef = useRef(0);
   const spawnThresholdRef = useRef(spawnThreshold);
   const isDebugModeRef = useRef(isDebugMode);
+  const isPausedRef = useRef(isPaused);
   const stageRef = useRef(stage);
   
   // Boss Mechanics
@@ -116,14 +129,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     enemies: THREE.Texture[];
     eagle: THREE.Texture | null;
     kawik: THREE.Texture | null;
+    tatoo: THREE.Texture | null;
+    tatooShell: THREE.Texture | null;
+    taupe: THREE.Texture | null;
     particles: THREE.Texture[];
     bam: THREE.Texture | null;
     pow: THREE.Texture | null;
     groundSchool: THREE.Texture | null;
     groundMountain: THREE.Texture | null;
     groundGarden: THREE.Texture | null;
+    groundDesert: THREE.Texture | null;
+    groundVolcano: THREE.Texture | null;
     desk: THREE.Texture | null;
     chair: THREE.Texture | null;
+    cactus: THREE.Texture | null;
     shadow: THREE.Texture | null;
     chicken: THREE.Texture | null;
     lion: THREE.Texture | null;
@@ -137,14 +156,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     enemies: [],
     eagle: null,
     kawik: null,
+    tatoo: null,
+    tatooShell: null,
+    taupe: null,
     particles: [],
     bam: null,
     pow: null,
     groundSchool: null,
     groundMountain: null,
     groundGarden: null,
+    groundDesert: null,
+    groundVolcano: null,
     desk: null,
     chair: null,
+    cactus: null,
     shadow: null,
     chicken: null,
     lion: null,
@@ -182,6 +207,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [gameState]);
 
   useEffect(() => {
+      isPausedRef.current = isPaused;
+      if (!isPaused) keysPressed.current.clear();
+  }, [isPaused]);
+
+  useEffect(() => {
       isDebugModeRef.current = isDebugMode;
       if (isDebugMode) {
           enemiesRef.current.forEach(enemy => {
@@ -206,6 +236,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     let bgColor = CONSTANTS.COLORS.BG_SCHOOL;
     if (stageRef.current === 2) bgColor = CONSTANTS.COLORS.BG_MOUNTAIN;
     if (stageRef.current === 3) bgColor = CONSTANTS.COLORS.BG_GARDEN;
+    if (stageRef.current === 4) bgColor = CONSTANTS.COLORS.BG_DESERT;
+    if (stageRef.current === 5) bgColor = CONSTANTS.COLORS.BG_VOLCANO;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(bgColor);
@@ -266,6 +298,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     ];
     texturesRef.current.eagle = createEagleTexture();
     texturesRef.current.kawik = createKawikTexture();
+    texturesRef.current.tatoo = createTatooTexture();
+    texturesRef.current.tatooShell = createTatooShellTexture();
+    texturesRef.current.taupe = createTaupeTexture();
 
     texturesRef.current.groundSchool = createClassroomFloorTexture();
     if (texturesRef.current.groundSchool) texturesRef.current.groundSchool.repeat.set(CONSTANTS.ARENA_SIZE / 8, CONSTANTS.ARENA_SIZE / 8);
@@ -276,8 +311,15 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     texturesRef.current.groundGarden = createGardenFloorTexture();
     if (texturesRef.current.groundGarden) texturesRef.current.groundGarden.repeat.set(CONSTANTS.ARENA_SIZE / 8, CONSTANTS.ARENA_SIZE / 8);
 
+    texturesRef.current.groundDesert = createDesertFloorTexture();
+    if (texturesRef.current.groundDesert) texturesRef.current.groundDesert.repeat.set(CONSTANTS.ARENA_SIZE / 10, CONSTANTS.ARENA_SIZE / 10);
+
+    texturesRef.current.groundVolcano = createVolcanoFloorTexture();
+    if (texturesRef.current.groundVolcano) texturesRef.current.groundVolcano.repeat.set(CONSTANTS.ARENA_SIZE / 10, CONSTANTS.ARENA_SIZE / 10);
+
     texturesRef.current.desk = createDeskTexture();
     texturesRef.current.chair = createChairTexture();
+    texturesRef.current.cactus = createCactusTexture();
     
     texturesRef.current.particles = [
       createParticleTexture('#ffffff'), 
@@ -303,12 +345,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     let currentFloorTex = texturesRef.current.groundSchool;
     if (stageRef.current === 2) currentFloorTex = texturesRef.current.groundMountain;
     if (stageRef.current === 3) currentFloorTex = texturesRef.current.groundGarden;
+    if (stageRef.current === 4) currentFloorTex = texturesRef.current.groundDesert;
+    if (stageRef.current === 5) currentFloorTex = texturesRef.current.groundVolcano;
 
     const topMat = new THREE.MeshBasicMaterial({ map: currentFloorTex });
-    
+
     let sideColor = 0x1a1a1a;
     if (stageRef.current === 2) sideColor = 0x555555;
     if (stageRef.current === 3) sideColor = 0x3f6212;
+    if (stageRef.current === 4) sideColor = 0x8b6914;
+    if (stageRef.current === 5) sideColor = 0x330000;
 
     const sideMat = new THREE.MeshBasicMaterial({ color: sideColor }); 
     const groundMaterials = [sideMat, sideMat, topMat, sideMat, sideMat, sideMat];
@@ -432,6 +478,43 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                 scene.add(rockMesh);
                 propsRef.current.push({ id: `rock_${i}`, type: 'rock', mesh: rockMesh, position: new THREE.Vector3(x, 0, z), radius: size/2, health: 100 });
              }
+        } else if (stageRef.current === 3) {
+            for(let i=0; i<12; i++) {
+                const r = CONSTANTS.ARENA_SIZE / 2.5;
+                const x = (Math.random() - 0.5) * 2 * r, z = (Math.random() - 0.5) * 2 * r;
+                if (Math.abs(x) < 5 && Math.abs(z) < 5) continue;
+                const chairMesh = new THREE.Sprite(new THREE.SpriteMaterial({ map: texturesRef.current.chair }));
+                chairMesh.scale.set(3, 3, 1);
+                chairMesh.position.set(x, 1.5, z);
+                scene.add(chairMesh);
+                propsRef.current.push({ id: `chair_${i}`, type: 'chair', mesh: chairMesh, position: new THREE.Vector3(x, 0, z), radius: 1.5, health: 20 });
+            }
+        } else if (stageRef.current === 4) {
+            // Desert: scatter cactus props
+            for(let i=0; i<15; i++) {
+                const r = CONSTANTS.ARENA_SIZE / 2.2;
+                const x = (Math.random() - 0.5) * 2 * r, z = (Math.random() - 0.5) * 2 * r;
+                if (Math.abs(x) < 5 && Math.abs(z) < 5) continue;
+                const cactusMesh = new THREE.Sprite(new THREE.SpriteMaterial({ map: texturesRef.current.cactus }));
+                const size = 3 + Math.random() * 2;
+                cactusMesh.scale.set(size, size, 1);
+                cactusMesh.position.set(x, size/2, z);
+                scene.add(cactusMesh);
+                propsRef.current.push({ id: `cactus_${i}`, type: 'rock', mesh: cactusMesh, position: new THREE.Vector3(x, 0, z), radius: size/2, health: 80 });
+            }
+        } else if (stageRef.current === 5) {
+            // Volcano: scatter rocks + lava glow at edges
+            for(let i=0; i<15; i++) {
+                const r = CONSTANTS.ARENA_SIZE / 2.2;
+                const x = (Math.random() - 0.5) * 2 * r, z = (Math.random() - 0.5) * 2 * r;
+                if (Math.abs(x) < 5 && Math.abs(z) < 5) continue;
+                const rockMesh = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x2a1a0a }));
+                const size = 2 + Math.random() * 2;
+                rockMesh.scale.set(size, size, 1);
+                rockMesh.position.set(x, size/2, z);
+                scene.add(rockMesh);
+                propsRef.current.push({ id: `vrock_${i}`, type: 'rock', mesh: rockMesh, position: new THREE.Vector3(x, 0, z), radius: size/2, health: 100 });
+            }
         }
     };
 
@@ -492,10 +575,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         });
         enemiesRef.current = [];
         let bossType: Enemy['type'] = 'boss_director';
-        let stats = {...CONSTANTS.BOSS.DIRECTOR};
+        let stats: any = {...CONSTANTS.BOSS.DIRECTOR};
         let tex = texturesRef.current.enemies[0];
         if (stageRef.current === 2) { bossType = 'boss_eagle'; stats = {...CONSTANTS.BOSS.EAGLE}; tex = texturesRef.current.eagle!; }
         else if (stageRef.current === 3) { bossType = 'boss_kawik'; stats = {...CONSTANTS.BOSS.KAWIK}; tex = texturesRef.current.kawik!; }
+        else if (stageRef.current === 4) { bossType = 'boss_tatoo'; stats = {...CONSTANTS.BOSS.TATOO}; tex = texturesRef.current.tatoo!; }
+        else if (stageRef.current === 5) { bossType = 'boss_taupe'; stats = {...CONSTANTS.BOSS.TAUPE}; tex = texturesRef.current.taupe!; }
         if (isDebugModeRef.current) stats.HP = 1;
         const mesh = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xffcccc }));
         mesh.scale.set(stats.SCALE, stats.SCALE, 1); mesh.center.set(0.5, 0);
@@ -503,7 +588,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         const hpSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: createHealthBarTexture(1) }));
         hpSprite.position.set(0, 1.1, 0); hpSprite.scale.set(1, 0.05, 1);
         mesh.add(hpSprite);
-        enemiesRef.current.push({ id: `boss_${Date.now()}`, type: bossType, variation: 0, mesh, position: new THREE.Vector3(0, 0, -CONSTANTS.ARENA_SIZE/2+5), velocity: new THREE.Vector3(0, 0, 0), health: stats.HP, maxHealth: stats.HP, isDead: false, radius: 3.5, stunTimer: 0, speechBubble: null, isBoss: true });
+        const bossEnemy: Enemy = { id: `boss_${Date.now()}`, type: bossType, variation: 0, mesh, position: new THREE.Vector3(0, 0, -CONSTANTS.ARENA_SIZE/2+5), velocity: new THREE.Vector3(0, 0, 0), health: stats.HP, maxHealth: stats.HP, isDead: false, radius: 3.5, stunTimer: 0, speechBubble: null, isBoss: true };
+        if (bossType === 'boss_tatoo') { bossEnemy.bossPhase = 'walk'; bossEnemy.bossPhaseTimer = CONSTANTS.BOSS.TATOO.WALK_DURATION; }
+        if (bossType === 'boss_taupe') { bossEnemy.bossPhase = 'surface'; bossEnemy.bossPhaseTimer = CONSTANTS.BOSS.TAUPE.SURFACE_DURATION; }
+        enemiesRef.current.push(bossEnemy);
         bossActiveRef.current = true; playSound('bossSpawn'); traumaRef.current = 1.0; onBossEnter();
     };
 
@@ -615,7 +703,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const animate = () => {
       if(!isMountedRef.current || !rendererRef.current) return;
       frameIdRef.current = requestAnimationFrame(animate);
-      if (gameStateRef.current !== GameStateStatus.PLAYING) return;
+      if (gameStateRef.current !== GameStateStatus.PLAYING || isPausedRef.current) return;
 
       if (hitStopRef.current > 0) {
         hitStopRef.current--;
@@ -655,8 +743,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       if (!hero.isDead) {
           const inputMove = new THREE.Vector3(0,0,0);
           if (hero.specialActiveTimer === 0 || character !== 'armand') {
-              if (isKeyPressed('up')) inputMove.z -= 1; if (isKeyPressed('down')) inputMove.z += 1;
-              if (isKeyPressed('left')) inputMove.x -= 1; if (isKeyPressed('right')) inputMove.x += 1;
+              if (isKeyPressed('up')) { inputMove.x -= 1; inputMove.z -= 1; }
+              if (isKeyPressed('down')) { inputMove.x += 1; inputMove.z += 1; }
+              if (isKeyPressed('left')) { inputMove.x -= 1; inputMove.z += 1; }
+              if (isKeyPressed('right')) { inputMove.x += 1; inputMove.z -= 1; }
               let speed = CONSTANTS.HERO_SPEED;
               if (inputMove.length() > 0) {
                   inputMove.normalize().multiplyScalar(speed);
@@ -678,8 +768,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               hero.attackTimer = CONSTANTS.ATTACK_COOLDOWN; 
               playSound('swing');
               hero.velocity.add(hero.facing.clone().multiplyScalar(2.5));
-              enemiesRef.current.forEach(e => { 
+              enemiesRef.current.forEach(e => {
                   if(e.position.distanceTo(hero.position) < CONSTANTS.ATTACK_RANGE) {
+                      // Invincibility checks: Tatoo in shell, Taupe burrowed
+                      if (e.type === 'boss_tatoo' && e.bossPhase === 'shell') return;
+                      if (e.type === 'boss_taupe' && e.bossPhase === 'burrow') return;
                       e.health -= 40;
                       // Knockback
                       const kbDir = e.position.clone().sub(hero.position).normalize();
@@ -712,7 +805,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       enemiesRef.current.forEach(e => {
           if (e.health <= 0 || e.position.y < -50) {
               spawnBloodExplosion(e.position, e.isBoss); sceneRef.current!.remove(e.mesh); removeSpeechBubble(e); playSound('die');
-              if (e.isBoss) { bossActiveRef.current = false; killCountRef.current = 0; setKillCount(0); }
+              if (e.isBoss) {
+                // Clean up taupe shadow if present
+                if (e.bossShadowMesh) { sceneRef.current!.remove(e.bossShadowMesh); }
+                bossActiveRef.current = true; // Keep true to suppress spawns during transition
+                if (stageRef.current < 5) {
+                  onStageAdvance();
+                } else {
+                  onVictory();
+                }
+              }
               else { killCountRef.current++; setKillCount(killCountRef.current); }
               return;
           }
@@ -720,16 +822,143 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           // Enemy AI: Move towards player
           const dist = e.position.distanceTo(hero.position);
           const dir = new THREE.Vector3().subVectors(hero.position, e.position).normalize();
-          
+
+          // --- TATOO AI ---
+          if (e.type === 'boss_tatoo' && e.bossPhase !== undefined) {
+              if (e.bossPhaseTimer !== undefined) e.bossPhaseTimer--;
+
+              if (e.bossPhase === 'shell') {
+                  // Swap texture to shell
+                  if (texturesRef.current.tatooShell) e.mesh.material.map = texturesRef.current.tatooShell;
+                  // Move in straight line, bounce off walls
+                  e.position.add(e.velocity);
+                  const half = CONSTANTS.ARENA_SIZE / 2 - 2;
+                  if (Math.abs(e.position.x) > half) { e.velocity.x *= -1; e.position.x = Math.sign(e.position.x) * half; }
+                  if (Math.abs(e.position.z) > half) { e.velocity.z *= -1; e.position.z = Math.sign(e.position.z) * half; }
+                  // Strong push on hero contact
+                  if (dist < 4.0 && !hero.isDead) {
+                      const pushDir = hero.position.clone().sub(e.position).normalize();
+                      hero.velocity.add(pushDir.multiplyScalar(CONSTANTS.BOSS.TATOO.PUSH_FORCE * 0.3));
+                      const now = Date.now();
+                      if (!hero.lastHitTime || now - hero.lastHitTime > 500) {
+                          hero.health -= CONSTANTS.DAMAGE_HERO * 1.5;
+                          setPlayerHealth(hero.health);
+                          hero.lastHitTime = now;
+                          traumaRef.current = 0.6;
+                          playSound('hit');
+                          if (hero.health <= 0) { hero.isDead = true; playSound('die'); onGameOver(); }
+                      }
+                  }
+                  // Transition to walk
+                  if (e.bossPhaseTimer !== undefined && e.bossPhaseTimer <= 0) {
+                      e.bossPhase = 'walk';
+                      e.bossPhaseTimer = CONSTANTS.BOSS.TATOO.WALK_DURATION;
+                      e.velocity.set(0, 0, 0);
+                      if (texturesRef.current.tatoo) e.mesh.material.map = texturesRef.current.tatoo;
+                  }
+                  e.mesh.position.set(e.position.x, 1.75 + e.position.y, e.position.z);
+                  if (e.mesh.children[0]) {
+                      const hpBar = e.mesh.children[0] as THREE.Sprite;
+                      hpBar.material.map = createHealthBarTexture(e.health / e.maxHealth);
+                  }
+                  living.push(e);
+                  return;
+              } else if (e.bossPhase === 'walk') {
+                  // Normal movement toward player, vulnerable
+                  if (e.stunTimer > 0) { e.stunTimer--; }
+                  else if (dist > 1.5) {
+                      e.velocity.x += dir.x * CONSTANTS.BOSS.TATOO.SPEED;
+                      e.velocity.z += dir.z * CONSTANTS.BOSS.TATOO.SPEED;
+                  }
+                  // Transition to shell
+                  if (e.bossPhaseTimer !== undefined && e.bossPhaseTimer <= 0) {
+                      e.bossPhase = 'shell';
+                      e.bossPhaseTimer = CONSTANTS.BOSS.TATOO.SHELL_DURATION;
+                      // Launch in random direction
+                      const angle = Math.random() * Math.PI * 2;
+                      e.velocity.set(Math.cos(angle) * CONSTANTS.BOSS.TATOO.SHELL_SPEED, 0, Math.sin(angle) * CONSTANTS.BOSS.TATOO.SHELL_SPEED);
+                      playSound('swing');
+                  }
+              }
+          }
+
+          // --- TAUPE AI ---
+          if (e.type === 'boss_taupe' && e.bossPhase !== undefined) {
+              if (e.bossPhaseTimer !== undefined) e.bossPhaseTimer--;
+
+              if (e.bossPhase === 'burrow') {
+                  e.mesh.visible = false;
+                  // Create shadow if not exists
+                  if (!e.bossShadowMesh) {
+                      const shadowMat = new THREE.SpriteMaterial({ map: texturesRef.current.shadow, transparent: true, opacity: 0.8 });
+                      const shadowSprite = new THREE.Sprite(shadowMat);
+                      shadowSprite.scale.set(6, 6, 1);
+                      shadowSprite.center.set(0.5, 0.5);
+                      scene.add(shadowSprite);
+                      e.bossShadowMesh = shadowSprite;
+                  }
+                  // Shadow follows toward player
+                  const shadowDir = hero.position.clone().sub(e.position).normalize();
+                  e.position.x += shadowDir.x * CONSTANTS.BOSS.TAUPE.SPEED * 1.5;
+                  e.position.z += shadowDir.z * CONSTANTS.BOSS.TAUPE.SPEED * 1.5;
+                  e.position.y = 0;
+                  e.bossShadowMesh.position.set(e.position.x, 0.15, e.position.z);
+                  // Transition: erupt
+                  if (e.bossPhaseTimer !== undefined && e.bossPhaseTimer <= 0) {
+                      e.bossPhase = 'surface';
+                      e.bossPhaseTimer = CONSTANTS.BOSS.TAUPE.SURFACE_DURATION;
+                      e.mesh.visible = true;
+                      if (e.bossShadowMesh) { scene.remove(e.bossShadowMesh); e.bossShadowMesh = undefined; }
+                      // Eruption effect
+                      spawnParticle(e.position, 3, 30, 1.0); // Brown rock burst
+                      spawnParticle(e.position, 0, 15, 0.8); // White dust
+                      traumaRef.current = 0.6;
+                      playSound('explosion');
+                      // Damage hero if close to eruption
+                      if (dist < 5.0 && !hero.isDead) {
+                          hero.velocity.add(dir.clone().negate().multiplyScalar(CONSTANTS.BOSS.TAUPE.PUSH_FORCE));
+                          hero.health -= CONSTANTS.DAMAGE_HERO * 2;
+                          setPlayerHealth(hero.health);
+                          hero.lastHitTime = Date.now();
+                          if (hero.health <= 0) { hero.isDead = true; playSound('die'); onGameOver(); }
+                      }
+                  }
+                  e.mesh.position.set(e.position.x, 1.75, e.position.z);
+                  if (e.mesh.children[0]) {
+                      const hpBar = e.mesh.children[0] as THREE.Sprite;
+                      hpBar.material.map = createHealthBarTexture(e.health / e.maxHealth);
+                  }
+                  living.push(e);
+                  return;
+              } else if (e.bossPhase === 'surface') {
+                  // Normal movement toward player, vulnerable
+                  if (e.stunTimer > 0) { e.stunTimer--; }
+                  else if (dist > 1.5) {
+                      e.velocity.x += dir.x * CONSTANTS.BOSS.TAUPE.SPEED;
+                      e.velocity.z += dir.z * CONSTANTS.BOSS.TAUPE.SPEED;
+                  }
+                  // Transition to burrow
+                  if (e.bossPhaseTimer !== undefined && e.bossPhaseTimer <= 0) {
+                      e.bossPhase = 'burrow';
+                      e.bossPhaseTimer = CONSTANTS.BOSS.TAUPE.BURROW_DURATION;
+                      e.velocity.set(0, 0, 0);
+                      spawnParticle(e.position, 3, 10, 0.5); // Dig particles
+                      playSound('break');
+                  }
+              }
+          }
+
           if (e.stunTimer > 0) {
               e.stunTimer--;
-          } else {
+          } else if (e.type !== 'boss_tatoo' && e.type !== 'boss_taupe') {
               // Only move if not too close (avoid jitter)
               if (dist > 1.5) {
                   e.velocity.x += dir.x * 0.05;
                   e.velocity.z += dir.z * 0.05;
               }
+          }
 
+          {
               // Attack player if very close
               if (dist < 2.0 && !hero.isDead) {
                   // Damage player
@@ -741,7 +970,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                       hero.lastHitTime = now;
                       traumaRef.current = 0.5;
                       playSound('hit');
-                      
+
                       // Strong push on hit
                       hero.velocity.add(dir.clone().multiplyScalar(2.5));
 

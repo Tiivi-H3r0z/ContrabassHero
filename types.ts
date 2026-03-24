@@ -57,7 +57,7 @@ export interface SpeechBubble {
 }
 
 export interface Enemy extends Entity {
-  type: 'teacher' | 'boss_director' | 'boss_eagle' | 'boss_kawik';
+  type: 'teacher' | 'boss_director' | 'boss_eagle' | 'boss_kawik' | 'boss_tatoo' | 'boss_taupe';
   variation: number; // Index for texture variation
   stunTimer: number;
   speechBubble: SpeechBubble | null;
@@ -65,6 +65,10 @@ export interface Enemy extends Entity {
   // Contamination logic for Eliot
   isContaminated?: boolean;
   contaminationTimer?: number;
+  // Boss phase mechanics (Tatoo/Taupe)
+  bossPhase?: 'shell' | 'walk' | 'surface' | 'burrow';
+  bossPhaseTimer?: number;
+  bossShadowMesh?: THREE.Sprite;
 }
 
 export interface Particle {
@@ -106,5 +110,6 @@ export interface Prop {
 export enum GameStateStatus {
   MENU,
   PLAYING,
-  GAME_OVER
+  GAME_OVER,
+  VICTORY
 }

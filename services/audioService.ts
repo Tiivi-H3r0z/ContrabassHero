@@ -10,32 +10,32 @@ let masterGain: GainNode | null = null;
 
 // --- MUSIC CONFIGURATION ---
 // TODO: Replace this URL with your hosted MP3 file link
-const BACKGROUND_MUSIC_URL: string = 'https://files.catbox.moe/x175e2.mp3'; 
+const BACKGROUND_MUSIC_URL: string = '';
 
 let bgm: HTMLAudioElement | null = null;
 
-export const initAudio = (volume: number = 0.3) => {
+export const initAudio = (volume?: number) => {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     masterGain = audioCtx.createGain();
-    masterGain.gain.value = volume; // SFX Master volume
+    masterGain.gain.value = volume ?? 0.3;
     masterGain.connect(audioCtx.destination);
+  } else if (volume !== undefined && masterGain) {
+    masterGain.gain.value = volume;
   }
   if (audioCtx.state === 'suspended') {
     audioCtx.resume();
   }
-  // Ensure volume is sync
-  if(masterGain) masterGain.gain.value = volume;
-  
   return { ctx: audioCtx, out: masterGain! };
 };
 
 export const setMasterVolume = (val: number) => {
+    const v = Math.max(0, Math.min(1, val));
     if (masterGain) {
-        masterGain.gain.value = val;
+        masterGain.gain.value = v;
     }
     if (bgm) {
-        bgm.volume = val * 1.5; // Scale music slightly higher or proportional
+        bgm.volume = v;
     }
 };
 
@@ -64,7 +64,7 @@ export const startMusic = () => {
     if (!bgm) {
         bgm = new Audio(BACKGROUND_MUSIC_URL);
         bgm.loop = true;
-        bgm.volume = (masterGain?.gain.value || 0.3) * 1.5; 
+        bgm.volume = masterGain?.gain.value ?? 0.3;
     }
 
     // Only play if currently paused to avoid overlaps
