@@ -30,7 +30,7 @@ export class Overlay {
     }
   }
 
-  pop(text: string, pos: THREE.Vector3, kind: 'dmg' | 'crit' | 'out' | 'heal' | 'block' | 'score' | 'big' = 'dmg') {
+  pop(text: string, pos: THREE.Vector3, kind: 'dmg' | 'crit' | 'out' | 'heal' | 'block' | 'score' | 'big' | 'sfx' | 'beat' | 'goth' = 'dmg') {
     let p = this.pops.find((x) => !x.active);
     if (!p) p = this.pops.reduce((a, b) => (a.life > b.life ? a : b));
     p.active = true;
@@ -40,9 +40,9 @@ export class Overlay {
     p.pos.copy(pos);
     p.vel.set((Math.random() - 0.5) * 3, kind === 'out' ? 3 : 6, 0);
     p.life = 0;
-    p.max = kind === 'big' ? 1.4 : kind === 'out' ? 1.1 : 0.85;
-    p.scale = kind === 'crit' || kind === 'big' ? 1.25 : 1;
-    p.rot = kind === 'crit' ? -8 + Math.random() * 4 : (Math.random() - 0.5) * 6;
+    p.max = kind === 'big' || kind === 'goth' ? 1.4 : kind === 'out' || kind === 'sfx' ? 0.9 : 0.85;
+    p.scale = kind === 'crit' || kind === 'big' || kind === 'goth' ? 1.25 : 1;
+    p.rot = kind === 'crit' ? -8 + Math.random() * 4 : kind === 'sfx' ? (Math.random() - 0.5) * 24 : (Math.random() - 0.5) * 6;
   }
 
   bubble(text: string, follow: () => THREE.Vector3 | null, seconds = 2.2, kind: 'enemy' | 'boss' | 'hero' = 'enemy') {

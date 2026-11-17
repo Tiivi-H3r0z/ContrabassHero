@@ -158,6 +158,23 @@ export class Hero {
     if (this.altKind) this.setAlt(null);
   }
 
+  // Execution animation driven by the Finales system (world frozen).
+  finalePose(t: number, dt: number) {
+    const periods: Record<CharacterType, number> = { armand: 0.4, adrien: 0.11, eliot: 0.24, swan: 0.16, pierre: 0.2, audrey: 0 };
+    const per = periods[this.char];
+    if (per === 0 || t <= 0) {
+      this.state = 'heavy';
+      this.heavyCharge = t <= 0 ? 0.4 : 1;
+    } else {
+      this.state = 'attack';
+      const step = this.char === 'adrien' || this.char === 'eliot' ? Math.floor(t / per) % 2 : 2;
+      this.comboStep = step;
+      const st = STEPS[step];
+      this.stateT = ((t % per) / per) * (st.dur / this.mods.atk);
+    }
+    this.animate(dt);
+  }
+
   private moveDir(out: THREE.Vector3) {
     const inp = this.game.input;
     const s = Math.SQRT1_2;
@@ -215,6 +232,8 @@ export class Hero {
         else if (inp.pressed('attack')) {
           if (!grounded && !this.airAttacked) this.startSmash();
           else if (grounded) this.startStep(this.comboWindow > 0 ? this.comboStep : 0);
+        } else if (inp.pressed('heavy') && grounded && g.finales.tryStart()) {
+          // finale started
         } else if (inp.pressed('heavy') && grounded) {
           this.state = 'heavy'; this.stateT = 0; this.heavyCharge = 0;
           audio.play('charge');
@@ -261,7 +280,7 @@ export class Hero {
           const c = Math.max(0.25, this.heavyCharge);
           this.sq.set(0.55);
           const r = 4.5 + 3.5 * c;
-          g.heroStrike({ center: this.pos, radius: r, arc: 7, facing: this.facing, dmg: (32 + 52 * c) * this.mods.dmg, kb: 16 + 16 * c, launch: 6 + 9 * c, guard: true, tag: this.newTag(), color: this.color, heavy: true });
+          g.heroStrike({ center: this.pos, radius: r, arc: 7, facing: this.facing, dmg: (32 + 52 * c) * this.mods.dmg, kb: 16 + 16 * c, launch: 6 + 9 * c, guard: true, tag: this.newTag(), color: this.color, heavy: true, style: c > 0.6 ? 'flat' : 'pop' });
           g.fx.ring(this.pos, this.color, 0.5, r, 0.4, 3);
           g.fx.ring(this.pos, PAL.bone, 0.3, r * 0.7, 0.3, 1.5);
           g.fx.burst(this.pos.clone().setY(0.5), this.color, 30, 22, { size: 0.45, life: 0.5, up: 0.5 });
@@ -415,7 +434,8 @@ export class Hero {
     this.sq.hit(-4);
     const dmg = st.dmg * this.mods.dmg * this.dmgBoost * (crit ? 1.8 : 1) * (this.altKind === 'lion' ? 1.6 : 1);
     const range = this.reach + st.range;
-    g.heroStrike({ center: this.pos, radius: range, arc: st.arc, facing: this.facing, dmg, kb: st.kb * (this.altKind === 'lion' ? 1.4 : 1), launch: st.launch, guard: !!st.guard, tag: this.newTag(), crit, color: this.color, heavy: st.anim === 'spin' });
+    const style = st.anim === 'overhead' ? (this.char === 'armand' || this.char === 'pierre' ? 'stake' : 'flat') : 'pop';
+    g.heroStrike({ center: this.pos, radius: range, arc: st.arc, facing: this.facing, dmg, kb: st.kb * (this.altKind === 'lion' ? 1.4 : 1), launch: st.launch, guard: !!st.guard, tag: this.newTag(), crit, color: this.color, heavy: st.anim === 'spin', finisher: st.anim === 'spin', style });
     const scale = range / 4.6;
     if (st.anim === 'spin') {
       g.fx.slash(this.pos, this.facing, this.color, scale, 0.22, 1, 1.2);
@@ -440,7 +460,7 @@ export class Hero {
     const g = this.game;
     this.state = 'move';
     this.comboWindow = 0;
-    g.heroStrike({ center: this.pos, radius: 5.8, arc: 7, facing: this.facing, dmg: 34 * this.mods.dmg * this.dmgBoost, kb: 10, launch: 13, guard: true, tag: this.newTag(), color: this.color, heavy: true });
+    g.heroStrike({ center: this.pos, radius: 5.8, arc: 7, facing: this.facing, dmg: 34 * this.mods.dmg * this.dmgBoost, kb: 10, launch: 13, guard: true, tag: this.newTag(), color: this.color, heavy: true, style: 'flat' });
     this.sq.set(0.6);
     g.fx.ring(this.pos, this.color, 0.5, 6.5, 0.35, 3);
     g.fx.burst(this.pos.clone().setY(0.4), this.color, 24, 18, { size: 0.4, life: 0.45, up: 0.4 });

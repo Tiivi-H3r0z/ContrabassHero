@@ -6,6 +6,18 @@ Guidance for Claude Code when working in this repository.
 
 **Contrabass Hero** is a frantic 3D arena hack'n'slash in the browser. A band of young musicians fights hordes of conservatory teachers pouring out of a dimensional rift, on a floating island over the void. Knock them off the edge, chain combos, reach the stage quota, beat the boss. 7 stages, 7 bosses, 6 playable heroes. Tone: sarcastic, teens/adults, cartoon (no blood: enemies burst into ink and sheet-music confetti). All player-facing text is French.
 
+## Versions
+
+The app opens on a version picker (`Launcher.tsx`, `styles/launcher.css`). `index.tsx` routes on `?v=`: each version boots in its own page load so styles and WebGL never leak between them.
+
+| `?v=` | Version | Code |
+|---|---|---|
+| 1 | **Pixel**: the original 2.5D sprite game | `versions/v1/` (restored from commit `7ee955a`, frozen; Tailwind play CDN loaded at runtime; excluded from `tsc`) |
+| 2 | **Néon**: first 3D toon redesign | `versions/v2/` (frozen copy: App, components, game, styles) |
+| 3 | **Carnage**: current development | root `App.tsx`, `components/`, `game/`, `styles/game.css`, entry `main3.tsx` |
+
+Only V3 evolves. Bug fixes may be backported to V2 deliberately; never refactor the frozen versions. `versions/VersionBack.tsx` adds the « Versions » link to V1/V2.
+
 ## Commands
 
 ```bash
@@ -17,7 +29,8 @@ npx tsc --noEmit -p .   # type check (no tests)
 
 ### Test URL parameters
 
-- `?char=swan&stage=3` start a run directly (skips menus)
+- `?char=swan&stage=3` start a V3 run directly (skips menus; add `v=2` for V2)
+- `&bosshp=0.1` boss starts at 10 % HP (Finale testing), `&finaletest=1` ignores the Finale distance check
 - `&quota=5` boss after 5 kills
 - `&debug=1` hero / camera readout
 - `&auto=1` the game plays itself (for headless screenshots)
@@ -47,6 +60,9 @@ React only renders UI; the game is a plain TypeScript engine in `game/`.
 | `game/systems/` | `Director` (horde spawning), `Events` (6 surprise events), `Dialogue` (typewriter, blocking scenes, barks) |
 | `game/stages/` | 7 environments: floor textures, island, sky shader with the rift, distant decor, destructible props, lights |
 | `game/audio/audio.ts` | Fully synthesized SFX and adaptive procedural music (intensity follows the combo nuance) |
+| `game/audio/bach.ts` | "Bach thrash" engine: real Bach themes (BWV 565, 846, 996, 1067, 1068) on distorted harpsichord, guitars, organ, choir, drums; intensity 0..6 (6 = CARNAGE), stingers, analyser |
+| `game/audio/music.ts` | V3 music facade over bach.ts: track per stage/boss, ducking, beat clock (`beatError()` drives the on-beat bonus) |
+| `game/systems/Finales.ts` | Hero executions on a boss under 12 % HP or a weakened elite: gothic card, choreography, kill |
 | `game/data/dialogues.ts` | All French text: stage intros, boss scenes, barks, taunts, events, report-card lines |
 | `game/MenuScene.ts`, `game/portraits.ts` | 3D menu backdrop; hero/boss portraits rendered once to PNG data URLs |
 
@@ -59,7 +75,7 @@ Key rules:
 
 ## Art direction
 
-`design/bible-visuelle.html` and `design/palettes.html` (served by Vite). Chosen palette: **Plasma froid** (`game/palette.ts`). Color roles are strict: power turquoise = helps the player / the rift, ui blue, combo pink, reward gold, danger orange = enemies, telegraphs and damage taken only. `design/stage-preview.html?stage=N` previews a stage.
+`design/bible-visuelle.html` is the v2 "Édition Carnage" bible: ultra-violent but absurd, musical violence, ink instead of blood, blackletter + cartoon type, kill catalogue, hero Finales, CARNAGE rank, short trashy dialogue, Bach thrash music deck. Its live hero demo (`design/bible-demo.ts`) runs on the real engine. `?shot=<section id>` isolates one section for headless screenshots. `design/bach-test.html` auditions the music engine. `design/palettes.html` compares palettes. Chosen palette: **Plasma froid** (`game/palette.ts`). Color roles are strict: power turquoise = helps the player / the rift, ui blue, combo pink, reward gold, danger orange = enemies, telegraphs and damage taken only. `design/stage-preview.html?stage=N` previews a stage.
 
 ## Conventions
 

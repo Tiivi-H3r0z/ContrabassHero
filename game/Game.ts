@@ -17,10 +17,12 @@ import { createBoss } from './bosses';
 import { Events } from './systems/Events';
 import { Director } from './systems/Director';
 import { Dialogue } from './systems/Dialogue';
+import { Finales } from './systems/Finales';
 import { buildStage, StageBuild, PropInstance, ARENA_RADIUS } from './stages';
 import { audio } from './audio/audio';
+import { music } from './audio/music';
 import { PAL, NUANCE_MULT, NUANCE_NAMES, nuanceOf } from './palette';
-import { BOSS_DEATH, BOSS_INTRO, HERO_BARKS, STAGE_INTRO, VICTORY_LINES, Line } from './data/dialogues';
+import { BOSS_DEATH, BOSS_INTRO, HERO_BARKS, STAGE_INTRO, VICTORY_LINES, Line, CARNAGE_BARKS, ON_BEAT_WORDS, KILL_WORDS } from './data/dialogues';
 
 export interface GameCallbacks {
   onStageClear(run: RunState, stats: StageStats): void;
@@ -45,6 +47,8 @@ export interface StrikeOpts {
   color?: THREE.ColorRepresentation;
   heavy?: boolean;
   quietSlash?: boolean;
+  finisher?: boolean;
+  style?: 'pop' | 'flat' | 'stake';
 }
 
 type Phase = 'horde' | 'bossIntro' | 'boss' | 'bossDeath' | 'clear' | 'gameover';
@@ -68,6 +72,7 @@ export class Game {
   events: Events;
   director: Director;
   dialogue: Dialogue;
+  finales: Finales;
   boss: Boss | null = null;
   props: GameProp[] = [];
   arenaRadius = ARENA_RADIUS;
@@ -79,7 +84,10 @@ export class Game {
   difficulty: number;
   enemySpeedMul = 1;
   tagSalt = 0;
-  post = { uHurt: 0, uAberration: 0, uImpact: 0, uDark: 0 };
+  post = { uHurt: 0, uAberration: 0, uImpact: 0, uDark: 0, uCarnage: 0, uDesat: 0, uBeat: 0 };
+  private lastKillWord = 0;
+  private lastBeatPop = 0;
+  private beatUnsub: () => void = () => {};
   stageNum: number;
   radioMate: CharacterType;
 
@@ -150,6 +158,7 @@ export class Game {
     this.events = new Events(this);
     this.director = new Director(this);
     this.dialogue = new Dialogue(this);
+    this.finales = new Finales(this);
 
     this.hero.respawn();
     this.hero.y = 14;
@@ -161,9 +170,10 @@ export class Game {
 
     this.initHud();
     if (new URLSearchParams(location.search).has('debug')) { this.debugEl = document.createElement('div'); this.debugEl.style.cssText = 'position:absolute;left:8px;bottom:120px;z-index:99;color:#fff;font:12px monospace;background:#000a;padding:4px'; container.appendChild(this.debugEl); }
-    audio.music.play('stage', run.stage);
-    audio.music.setIntensity(0);
+    music.play('stage', run.stage);
+    music.setIntensity(0);
     this.dialogue.play(STAGE_INTRO[run.stage] ?? [], false);
+    this.beatUnsub = music.onBeat((n) => this.onMusicBeat(n));
 
     this.last = performance.now();
     this.raf = requestAnimationFrame(this.frame);
@@ -196,7 +206,7 @@ export class Game {
 
   setPaused(p: boolean) {
     this.paused = p;
-    audio.music.setPaused(p);
+    music.setPaused(p);
   }
 
   updateSettings(s: GameSettings) {
@@ -231,7 +241,7 @@ export class Game {
 
     if (this.slowT > 0) {
       this.slowT -= FIXED;
-      if (this.slowT <= 0) { this.timeScale = 1; audio.music.setSlowmo(1); }
+      if (this.slowT <= 0) { this.timeScale = 1; }
     }
     const dt = FIXED * this.timeScale;
     this.dialogue.update(FIXED);
@@ -239,6 +249,14 @@ export class Game {
       this.fx.update(dt);
       this.stage.update(dt, this.time);
       this.time += dt;
+      return;
+    }
+    if (this.finales.active) {
+      this.finales.update(FIXED);
+      this.fx.update(FIXED * 0.7);
+      this.stage.update(FIXED, this.time);
+      this.time += FIXED * 0.7;
+      this.syncHud();
       return;
     }
     if (this.hitstop > 0) { this.hitstop--; return; }
@@ -258,6 +276,7 @@ export class Game {
     if (this.phase === 'horde' || this.phase === 'boss') this.director.update(dt);
     this.events.update(dt);
     this.updatePhase(dt);
+    this.finales.scan(dt);
     this.fx.update(dt);
     this.stage.update(dt, this.time);
 
@@ -273,6 +292,9 @@ export class Game {
 
     this.post.uHurt = Math.max(0, this.post.uHurt - dt * 2.2);
     this.post.uAberration = Math.max(0, this.post.uAberration - dt * 3);
+    this.post.uDesat = Math.max(0, this.post.uDesat - dt * 3.3);
+    this.post.uBeat = Math.max(0, this.post.uBeat - dt * 4);
+    this.post.uCarnage += ((this.nuance >= 6 ? 1 : 0) - this.post.uCarnage) * Math.min(1, dt * 4);
     this.syncHud();
   }
 
@@ -282,7 +304,7 @@ export class Game {
     v1.set(Math.sin(h.facing), 0, Math.cos(h.facing)).multiplyScalar(2);
     this.cam.lookAhead.lerp(v1, 0.05);
     const crowd = this.enemies.list.length;
-    const want = (this.boss && !this.boss.dead ? 38 : 31) + Math.min(5, crowd * 0.07);
+    const want = this.finales.active ? 21 : (this.boss && !this.boss.dead ? 38 : 31) + Math.min(5, crowd * 0.07);
     this.cam.dist += (want - this.cam.dist) * Math.min(1, dt * 1.5);
     if (!this.paused) this.cam.update(dt * this.timeScale);
 
@@ -296,10 +318,13 @@ export class Game {
     u.uHurt.value = this.post.uHurt;
     u.uAberration.value = this.post.uAberration;
     u.uDark.value = this.post.uDark;
+    u.uCarnage.value = this.post.uCarnage;
+    u.uDesat.value = this.post.uDesat;
+    u.uBeat.value = this.post.uBeat;
     u.uImpact.value = this.impact > 0 && this.settings.flashes ? 1 : 0;
     if (this.impact > 0) this.impact--;
     this.pipeline.render(this.time);
-    if (this.debugEl) { const c = this.cam.camera.position; this.debugEl.textContent = `hero ${h.pos.x.toFixed(1)},${h.y.toFixed(1)},${h.pos.z.toFixed(1)} st=${h.state} f=${h.facing.toFixed(2)} | cam ${c.x.toFixed(1)},${c.y.toFixed(1)},${c.z.toFixed(1)} d=${this.cam.dist.toFixed(1)} | en=${this.enemies.list.length} t=${this.time.toFixed(1)} nan=${this.enemies.list.filter((e) => isNaN(e.pos.x) || isNaN(e.y)).length}`; }
+    if (this.debugEl) { const c = this.cam.camera.position; this.debugEl.textContent = `hero ${h.pos.x.toFixed(1)},${h.y.toFixed(1)},${h.pos.z.toFixed(1)} st=${h.state} f=${h.facing.toFixed(2)} | cam ${c.x.toFixed(1)},${c.y.toFixed(1)},${c.z.toFixed(1)} d=${this.cam.dist.toFixed(1)} | en=${this.enemies.list.length} t=${this.time.toFixed(1)} nan=${this.enemies.list.filter((e) => isNaN(e.pos.x) || isNaN(e.y)).length} lost=${this.pipeline.contextLost}`; }
     this.overlay.update(dt, this.cam.camera, this.width, this.height);
   }
 
@@ -318,8 +343,33 @@ export class Game {
     if (Math.floor(this.autoT * 60) % 240 === 0) acts.push('jump');
     if (Math.floor(this.autoT * 60) % 240 === 12) acts.push('attack');
     if (h.special >= 1) acts.push('special');
+    if (this.finales.candidate && Math.floor(this.autoT * 60) % 20 === 0) acts.push('heavy');
     if (this.cutscene && Math.floor(this.autoT * 60) % 30 === 0) acts.push('attack');
     this.input.simulate(mx, my, acts);
+  }
+
+  // ---------- Music / kills ----------
+  private onMusicBeat(n: number) {
+    if (this.paused || this.disposed) return;
+    this.post.uBeat = 1;
+    this.hud.set('beat', n);
+    if (this.nuance >= 5 && !this.cutscene) this.cam.addPunch(0.06);
+  }
+
+  private onBeatHit() {
+    this.setCombo(this.combo + 1);
+    this.fx.ring(this.hero.pos, PAL.power, 0.4, 3.4, 0.22, 2.6);
+    if (this.time - this.lastBeatPop > 0.35) {
+      this.lastBeatPop = this.time;
+      this.overlay.pop(ON_BEAT_WORDS[Math.floor(Math.random() * ON_BEAT_WORDS.length)], this.hero.pos.clone().setY(5.2), 'beat');
+    }
+  }
+
+  killWord(kind: 'pop' | 'flat' | 'out' | 'stake' | 'juggle', pos: THREE.Vector3) {
+    if (this.time - this.lastKillWord < 0.3) return;
+    this.lastKillWord = this.time;
+    const words = KILL_WORDS[kind];
+    this.overlay.pop(words[Math.floor(Math.random() * words.length)], pos, 'sfx');
   }
 
   // ---------- Juice ----------
@@ -329,16 +379,22 @@ export class Game {
     this.hitstop = Math.max(this.hitstop, hitstopFrames);
     this.post.uAberration = Math.max(this.post.uAberration, punch);
   }
-  impactFrames(n: number) { this.impact = Math.max(this.impact, n); }
+  private lastImpact = -9;
+  impactFrames(n: number, force = false) {
+    if (!force && this.time - this.lastImpact < 0.9) return;
+    this.lastImpact = this.time;
+    this.impact = Math.max(this.impact, n);
+  }
   slowmo(factor: number, seconds: number) {
     this.timeScale = factor;
     this.slowT = seconds;
-    audio.music.setSlowmo(Math.max(0.5, factor));
   }
 
   // ---------- Combat ----------
   heroStrike(o: StrikeOpts): number {
     let hits = 0;
+    const onBeat = !o.quietSlash && music.beatError() < 0.11;
+    if (onBeat) o = { ...o, dmg: o.dmg * 1.3 };
     const hero = this.hero;
     const half = o.arc / 2;
     const inArc = (x: number, z: number) => {
@@ -358,7 +414,7 @@ export class Game {
       const dir = new THREE.Vector3(dx, 0, dz);
       if (dir.lengthSq() < 0.01) dir.set(Math.sin(o.facing), 0, Math.cos(o.facing));
       dir.normalize();
-      if (this.enemies.hit(e, { dmg: o.dmg, dir, kb: o.kb, launch: o.launch || undefined, breaksGuard: o.guard, tag: o.tag, crit: o.crit, color: o.color })) hits++;
+      if (this.enemies.hit(e, { dmg: o.dmg, dir, kb: o.kb, launch: o.launch || undefined, breaksGuard: o.guard, tag: o.tag, crit: o.crit, color: o.color, style: o.style })) hits++;
     }
     if (this.boss && !this.boss.dead && this.boss.reachable()) {
       const b = this.boss;
@@ -383,9 +439,11 @@ export class Game {
     if (hits > 0 && !o.quietSlash) {
       const heavy = o.heavy || o.crit;
       audio.play(o.crit ? 'crit' : heavy ? 'hitHeavy' : 'hit', { volume: Math.min(1.2, 0.7 + hits * 0.08) });
-      this.shake(heavy ? 0.32 : 0.16, heavy ? 0.35 : 0.12, heavy ? 6 : 3);
-      this.input.rumble(heavy ? 0.6 : 0.25, heavy ? 0.5 : 0.3, heavy ? 120 : 60);
+      this.shake(heavy ? 0.4 : 0.18, heavy ? 0.42 : 0.14, o.heavy ? 10 : o.crit ? 7 : o.finisher ? 7 : 4);
+      this.input.rumble(heavy ? 0.7 : 0.3, heavy ? 0.6 : 0.3, heavy ? 140 : 60);
+      if (o.heavy) { this.cam.addRoll((Math.random() < 0.5 ? -1 : 1) * 0.06); if (hits >= 5) this.impactFrames(1); }
       if (o.crit) this.impactFrames(1);
+      if (onBeat) this.onBeatHit();
     } else if (hits > 0) {
       audio.play('hit', { volume: 0.5 });
     }
@@ -451,7 +509,15 @@ export class Game {
       if (n > this.nuance) {
         audio.play('comboUp', { pitch: 1 + n * 0.1 });
         if (n >= 4) this.overlay.pop(NUANCE_NAMES[n].toUpperCase() + ' !', this.hero.pos.clone().setY(6), 'big');
-        if (n >= 4 && n > this.nuanceBarked) {
+        if (n === 6) {
+          music.sting('carnage');
+          this.overlay.pop('CARNAGE', this.hero.pos.clone().setY(7), 'goth');
+          this.impactFrames(2);
+          this.shake(0.6, 0.5, 8);
+          const cl = CARNAGE_BARKS[this.hero.char];
+          this.dialogue.bark(this.hero.char, cl[Math.floor(Math.random() * cl.length)]);
+          this.nuanceBarked = 6;
+        } else if (n >= 4 && n > this.nuanceBarked) {
           this.nuanceBarked = n;
           const lines = HERO_BARKS[this.hero.char].combo;
           this.dialogue.bark(this.hero.char, lines[Math.floor(Math.random() * lines.length)]);
@@ -459,9 +525,11 @@ export class Game {
       }
       if (n === 0) this.nuanceBarked = 0;
       this.nuance = n;
-      audio.music.setIntensity(this.events.forcedIntensity ?? n);
+      music.setIntensity(this.events.forcedIntensity ?? n);
     }
   }
+
+  bumpCombo(n: number) { this.setCombo(this.combo + n); this.comboTimer = 3; }
 
   addScore(base: number) { this.run.score += Math.round(base * NUANCE_MULT[this.nuance]); }
 
@@ -471,7 +539,7 @@ export class Game {
 
   onEnemyOut(e: Enemy) {
     audio.play('out', { pitch: 0.9 + Math.random() * 0.3 });
-    this.overlay.pop('OUT !', e.pos.clone().setY(2.5), 'out');
+    this.killWord('out', e.pos.clone().setY(2.5));
     this.fx.burst(e.pos.clone().setY(1), PAL.combo, 10, 10, { size: 0.35, life: 0.5 });
   }
 
@@ -493,6 +561,7 @@ export class Game {
     audio.play('stringSnap');
     audio.play('hurt');
     this.post.uHurt = 1;
+    this.post.uDesat = 1;
     this.shake(0.55, 0.2, 5);
     this.input.rumble(1, 0.8, 250);
     if (this.combo >= 10) this.overlay.pop('COMBO CASSÉ', this.hero.pos.clone().setY(5), 'block');
@@ -516,12 +585,13 @@ export class Game {
     this.phaseT = 0;
     this.slowmo(0.3, 1.6);
     this.impactFrames(2);
-    audio.music.stop(1.5);
+    music.stop(1.2);
+    music.sting('death');
   }
 
   onSpecial() {
     const h = this.hero;
-    audio.music.duck(0.5, 1.2);
+    music.duck(0.5, 1.2);
     this.hitstop = Math.max(this.hitstop, 22);
     this.post.uAberration = 1;
     this.cam.addPunch(0.6);
@@ -546,7 +616,8 @@ export class Game {
     this.impactFrames(3);
     this.shake(1, 0.9, 12);
     audio.play('bossDie');
-    audio.music.stop(2);
+    music.stop(0.4);
+    music.sting('finale');
     this.projectiles.clearEnemyShots();
     this.enemies.killAll('clear');
     const lines = BOSS_DEATH[b.id];
@@ -565,7 +636,7 @@ export class Game {
       this.shake(0.6, 0.4, 8);
       this.fx.ring(this.hero.pos, PAL.power, 1, 40, 1.2, 3);
       audio.play('eventSiren');
-      audio.music.stop(1.5);
+      music.stop(1.2);
     }
     if (this.phase === 'bossIntro' && this.phaseT > 0.9 && !this.cutscene && !this.boss) {
       const id = BOSS_ORDER[this.stageNum - 1];
@@ -577,6 +648,8 @@ export class Game {
         { speaker: id, text: intro.boss[2] },
       ];
       this.boss = createBoss(this, id);
+      const bhp = parseFloat(new URLSearchParams(location.search).get('bosshp') ?? '');
+      if (bhp > 0 && bhp <= 1) this.boss.hp = this.boss.maxHp * bhp;
       this.dialogue.play(lines, true, () => {
         if (!this.boss) return;
         this.boss.mount();
@@ -584,7 +657,8 @@ export class Game {
         this.hud.set('bossActive', true);
         this.phase = 'boss';
         this.phaseT = 0;
-        audio.music.play('boss', this.stageNum);
+        music.sting('boss');
+        setTimeout(() => music.play('boss', this.stageNum), 900);
       });
     }
     if (this.phase === 'bossDeath' && this.boss) {
@@ -607,7 +681,8 @@ export class Game {
         this.phaseT = 0;
         audio.play(this.stageNum >= 7 ? 'victory' : 'stageClear');
         if (this.stageNum >= 7) {
-          audio.music.play('victory');
+          music.play('stage', 7);
+          music.setIntensity(6);
           this.dialogue.play(VICTORY_LINES, true, () => this.finish('victory'));
         } else {
           setTimeout(() => this.finish('clear'), 1200);
@@ -669,6 +744,7 @@ export class Game {
   }
 
   dispose() {
+    this.beatUnsub();
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     this.resizeObs.disconnect();

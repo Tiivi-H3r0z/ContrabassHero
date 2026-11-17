@@ -73,10 +73,10 @@ export const Hud: React.FC<{ store: HudStore; portraits: Portraits; settings: Ga
             </>}
             <div className="hud-score">{s.score.toLocaleString('fr-FR')}</div>
           </div>
-          <div className={`hud-combo ${s.nuance >= 5 ? 'fff' : ''}`} style={{ opacity: s.combo > 1 ? 1 : 0 }}>
+          <div className={`hud-combo ${s.nuance >= 5 ? 'fff' : ''} ${s.nuance >= 6 ? 'carnage' : ''}`} style={{ opacity: s.combo > 1 ? 1 : 0 }}>
             <span key={bump} className="n bump">{s.combo}</span>
             <div className="lb">COUPS</div>
-            <div className="dyn">{NUANCES[s.nuance]}<small>{NUANCE_NAMES[s.nuance]}</small></div>
+            {s.nuance >= 6 ? <div className="dyn goth">Carnage<small>×8 · tempo +15 %</small></div> : <div className="dyn">{NUANCES[s.nuance]}<small>{NUANCE_NAMES[s.nuance]}</small></div>}
             <div className="decay"><i style={{ width: `${s.comboTimer * 100}%` }} /></div>
           </div>
           {s.bossActive && (
@@ -114,6 +114,21 @@ export const Hud: React.FC<{ store: HudStore; portraits: Portraits; settings: Ga
             {portraits[cutin.hero + '_full'] && <img src={portraits[cutin.hero + '_full']} alt="" />}
             <b>{cutin.name}</b>
           </div>
+        </div>
+      )}
+      {!d?.blocking && (
+        <div className="metro" aria-hidden="true">
+          {[0, 1, 2, 3].map((k) => <i key={k} className={s.beat % 4 === k ? 'on' : ''} />)}
+        </div>
+      )}
+      {s.finalePrompt && !s.finale && !d?.blocking && (
+        <div className="finale-prompt"><b>Finale</b><span>{keyOf('heavy')} · EXÉCUTER</span></div>
+      )}
+      {s.finale && (
+        <div className="finale-card" key={s.finale.id} style={{ ['--hc' as string]: HERO_COLORS[s.finale.hero] }}>
+          <div className="rays" />
+          {portraits[s.finale.hero + '_full'] && <img src={portraits[s.finale.hero + '_full']} alt="" />}
+          <div className="fc-t"><b>{s.finale.name}</b><span>{heroName(s.finale.hero)} · FINALE</span></div>
         </div>
       )}
       {intro && (

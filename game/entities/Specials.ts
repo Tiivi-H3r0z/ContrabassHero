@@ -4,6 +4,7 @@ import { PAL } from '../palette';
 import { makeOutlineMaterial, makeToonMaterial, toonMesh } from '../render/toon';
 import { fartGeometry } from '../models/heroes';
 import { audio } from '../audio/audio';
+import { music } from '../audio/music';
 
 export const SPECIAL_NAMES = {
   armand: "TOUPIE D'ARCHET !",
@@ -171,7 +172,8 @@ export class Specials {
     g.shake(1, 0.8, 14);
     g.slowmo(0.3, 0.9);
     audio.play('explosion', { volume: 1.6, pitch: 0.6 });
-    audio.music.duck(0.8, 1.5);
+    music.duck(0.8, 1.5);
+    music.sting('finale');
     g.input.rumble(1, 1, 600);
     const center = new THREE.Vector3(-6, 0, -6);
     for (let i = 0; i < 5; i++) g.fx.ring(center, i % 2 ? PAL.bone : '#fff6a0', 1, 10 + i * 9, 0.6 + i * 0.25, 3.5);

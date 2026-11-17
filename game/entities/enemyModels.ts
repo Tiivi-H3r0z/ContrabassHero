@@ -93,4 +93,4 @@ export const ENEMY_STATS: Record<EnemyKind, EnemyStats> = {
   inspecteur: { hp: 240, speed: 3.8, radius: 1.0, mass: 2.4, score: 600, height: 3.4, reach: 2.2 },
 };
 
-export const ENEMY_CAP: Record<EnemyKind, number> = { solfege: 110, surveillant: 60, maths: 34, cpe: 22, inspecteur: 12 };
+export const ENEMY_CAP: Record<EnemyKind, number> = { solfege: 150, surveillant: 80, maths: 40, cpe: 26, inspecteur: 12 };

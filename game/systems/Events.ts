@@ -8,6 +8,7 @@ import { box, buildRig, cyl, mergeParts, Rig, sph, tor } from '../models/builder
 import { makeOutlineMaterial, makeToonMaterial, neonMaterial, toonMesh } from '../render/toon';
 import type { Telegraph } from '../core/Fx';
 import { audio } from '../audio/audio';
+import { music } from '../audio/music';
 
 interface Desk { obj: THREE.Object3D; pos: THREE.Vector3; tele: Telegraph; t: number; done: boolean }
 
@@ -138,7 +139,7 @@ export class Events {
       }
       case 'recess':
         this.forcedIntensity = 5;
-        audio.music.setIntensity(5);
+        music.setIntensity(5);
         break;
       case 'council': {
         this.council = [];
@@ -299,7 +300,7 @@ export class Events {
     this.timer = 48 + Math.random() * 22;
     g.hud.set('banner', null);
     this.forcedIntensity = null;
-    audio.music.setIntensity(g.nuance);
+    music.setIntensity(g.nuance);
     if (id === 'rift' && this.portal) { this.group.remove(this.portal.obj); this.portal = null; }
     if (id === 'council') this.beams.forEach((b) => (b.visible = false));
     if (id === 'helicopter' && this.heli) { this.group.remove(this.heli.root); this.heli = null; }

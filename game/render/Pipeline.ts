@@ -14,12 +14,15 @@ const FinalShader = {
     uHurt: { value: 0 },
     uDark: { value: 0 },
     uHurtColor: { value: new THREE.Color('#ff5a1a') },
+    uCarnage: { value: 0 },
+    uDesat: { value: 0 },
+    uBeat: { value: 0 },
     uRes: { value: new THREE.Vector2(1, 1) },
   },
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
   fragmentShader: `
 uniform sampler2D tDiffuse; uniform float uTime; uniform float uAberration; uniform float uImpact; uniform float uHurt; uniform float uDark;
-uniform vec3 uHurtColor; uniform vec2 uRes; varying vec2 vUv;
+uniform vec3 uHurtColor; uniform vec2 uRes; uniform float uCarnage; uniform float uDesat; uniform float uBeat; varying vec2 vUv;
 float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
 void main(){
   vec2 c = vUv - 0.5;
@@ -30,11 +33,13 @@ void main(){
   col.g = texture2D(tDiffuse, vUv).g;
   col.b = texture2D(tDiffuse, vUv - off).b;
   float lum = dot(col, vec3(0.299,0.587,0.114));
-  col = mix(vec3(lum), col, 1.12);
+  col = mix(vec3(lum), col, 1.12 + uCarnage * 0.25);
+  col = mix(col, vec3(dot(col, vec3(0.299,0.587,0.114))), clamp(uDesat, 0.0, 1.0) * 0.85);
   float vig = smoothstep(0.85, 0.25, d);
   col *= mix(0.55, 1.0, vig);
   col = mix(col, col * 0.18, uDark * smoothstep(0.15, 0.7, d));
   col += uHurtColor * uHurt * smoothstep(0.3, 0.8, d) * 0.9;
+  col += vec3(1.0, 0.24, 0.55) * uCarnage * smoothstep(0.35, 0.85, d) * (0.45 + 0.55 * uBeat);
   float g = hash(vUv * uRes + fract(uTime * 7.0)) - 0.5;
   col += g * 0.035;
   if (uImpact > 0.5) col = vec3(1.0) - clamp(col, 0.0, 1.0) * vec3(0.9, 1.0, 1.0);
@@ -49,6 +54,7 @@ export class Pipeline {
   final: ShaderPass;
   renderPass: RenderPass;
   private size = new THREE.Vector2();
+  contextLost = false;
 
   constructor(container: HTMLElement, scene: THREE.Scene, camera: THREE.Camera) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', stencil: false });
@@ -56,6 +62,8 @@ export class Pipeline {
     this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(this.renderer.domElement);
+    this.renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.contextLost = true; console.warn('[pipeline] WebGL context lost'); });
+    this.renderer.domElement.addEventListener('webglcontextrestored', () => { this.contextLost = false; console.warn('[pipeline] WebGL context restored'); });
     const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
     this.composer = new EffectComposer(this.renderer, rt);
     this.renderPass = new RenderPass(scene, camera);
@@ -85,7 +93,7 @@ export class Pipeline {
   dispose() {
     this.composer.dispose();
     this.renderer.dispose();
-    this.renderer.forceContextLoss();
+    // no forceContextLoss: it can take down sibling contexts on some drivers
     this.renderer.domElement.remove();
   }
 }

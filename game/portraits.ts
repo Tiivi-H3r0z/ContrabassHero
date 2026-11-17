@@ -69,7 +69,7 @@ export const getPortraits = (): Portraits => {
     // no WebGL: portraits stay empty, UI falls back to colored blocks
   } finally {
     renderer?.dispose();
-    renderer?.forceContextLoss();
+    // no forceContextLoss: it can take down sibling contexts on some drivers
   }
   cache = out;
   return out;

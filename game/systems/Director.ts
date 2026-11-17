@@ -34,7 +34,7 @@ export class Director {
     const g = this.game;
     const s = g.stageNum;
     if (g.phase === 'boss') return 5 + s;
-    return Math.min(30 + s * 7, 16 + s * 3 + Math.floor(this.elapsed / 3.5));
+    return Math.min(52 + s * 7, 24 + s * 4 + Math.floor(this.elapsed / 2.2));
   }
 
   update(dt: number) {
@@ -46,8 +46,8 @@ export class Director {
     const remaining = g.quota - g.stageKills;
     if (g.phase === 'horde' && remaining - alive <= 0) return;
     if (this.spawnT > 0 || alive >= this.maxAlive()) return;
-    this.spawnT = g.phase === 'boss' ? 2.6 : Math.max(0.45, 1.1 - g.stageNum * 0.06);
-    const n = g.phase === 'boss' ? 1 + Math.floor(Math.random() * 2) : 2 + Math.floor(Math.random() * (2 + g.stageNum * 0.5));
+    this.spawnT = g.phase === 'boss' ? 2.2 : Math.max(0.3, 0.8 - g.stageNum * 0.05);
+    const n = g.phase === 'boss' ? 1 + Math.floor(Math.random() * 2) : 3 + Math.floor(Math.random() * (3 + g.stageNum * 0.6));
     const base = Math.random() * Math.PI * 2;
     const R = g.arenaRadius;
     let spawned = 0;

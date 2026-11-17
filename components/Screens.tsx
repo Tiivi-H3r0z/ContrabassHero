@@ -8,6 +8,7 @@ import { SPECIAL_DESC, SPECIAL_NAMES } from '../game/entities/Specials';
 import { GAME_OVER_TAUNTS, STAGE_CLEAR_LINES } from '../game/data/dialogues';
 import { DEFAULT_KEYS, normKey } from '../game/core/Input';
 import { audio } from '../game/audio/audio';
+import { music } from '../game/audio/music';
 import type { Portraits } from '../game/portraits';
 
 const NAMES: Record<CharacterType, [string, string]> = {
@@ -40,7 +41,7 @@ export const TitleScreen: React.FC<{ onPlay: () => void; onOptions: () => void; 
   const [armed, setArmed] = useState(false);
   useEffect(() => {
     if (armed) return;
-    const arm = () => { audio.init(); audio.music.play('menu'); setArmed(true); };
+    const arm = () => { audio.init(); music.init(); music.play('menu'); setArmed(true); };
     const onKey = (e: KeyboardEvent) => { e.preventDefault(); arm(); };
     window.addEventListener('keydown', onKey, { once: true });
     window.addEventListener('pointerdown', arm, { once: true });
@@ -57,10 +58,11 @@ export const TitleScreen: React.FC<{ onPlay: () => void; onOptions: () => void; 
     <div className="layer title fadein">
       <div className="vignette" />
       <div className="title-left">
-        <h1 className="logo">Contrabass<small>HERO</small></h1>
-        <p className="pitch">Le conservatoire a ouvert une faille. Les profs en sortent par centaines. Six musiciens, six instruments, <b>zéro respect pour le solfège</b>.</p>
+        <h1 className="logo goth">Contrabass<small>HERO</small></h1>
+        <span className="stamp">ÉDITION CARNAGE</span>
+        <p className="pitch">Six gamins. Six instruments. <b>Le conservatoire va saigner de l'encre.</b></p>
         {armed ? (
-          <MenuButtons enabled={enabled} items={[{ label: 'JOUER', action: onPlay }, { label: 'OPTIONS', kind: 'sec', action: onOptions }]} />
+          <MenuButtons enabled={enabled} items={[{ label: 'JOUER', action: onPlay }, { label: 'OPTIONS', kind: 'sec', action: onOptions }, { label: 'VERSIONS', kind: 'sec', action: () => { location.href = location.pathname; } }]} />
         ) : (
           <div className="press">APPUIE SUR UNE TOUCHE</div>
         )}
@@ -195,7 +197,7 @@ const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60
 
 export const ResultScreen: React.FC<{ kind: 'clear' | 'gameover' | 'victory'; stats: StageStats; run: RunState; onPrimary: () => void; onMenu: () => void }> = ({ kind, stats, run, onPrimary, onMenu }) => {
   const [taunt] = useState(() => GAME_OVER_TAUNTS[Math.floor(Math.random() * GAME_OVER_TAUNTS.length)]);
-  const title = kind === 'clear' ? `STAGE ${stats.stage} TERMINÉ` : kind === 'victory' ? 'LA FAILLE EST FERMÉE' : 'FIN DU RÉCITAL';
+  const title = kind === 'clear' ? `Stage ${stats.stage}. Massacré.` : kind === 'victory' ? 'Coda finale.' : 'Rideau.';
   const rows: [string, string][] = kind === 'victory'
     ? [['Profs renvoyés', String(run.kills)], ['Combo max', String(run.maxCombo)], ['Temps total', fmtTime(run.time)], ['Score final', run.score.toLocaleString('fr-FR')]]
     : [['Profs renvoyés', String(stats.kills)], ['Combo max', String(stats.maxCombo)], ['Temps', fmtTime(stats.time)], ['Cordes cassées', String(stats.damageTaken)], ['Score du stage', stats.score.toLocaleString('fr-FR')], ['Score total', run.score.toLocaleString('fr-FR')]];
@@ -210,11 +212,11 @@ export const ResultScreen: React.FC<{ kind: 'clear' | 'gameover' | 'victory'; st
       <div className={`panel result-card ${kind === 'gameover' ? 'gameover-card' : kind === 'victory' ? 'victory-card' : ''}`}>
         <div>
           <span className="label">{kind === 'clear' ? 'Bulletin trimestriel' : kind === 'gameover' ? 'Toutes les cordes ont cassé' : 'Bulletin de fin d\'année'}</span>
-          <h2 className="shout">{title}</h2>
+          <h2 className="goth-title">{title}</h2>
           <div className="result-rows">{rows.map(([k, v]) => <div key={k}><span>{k}</span><b>{v}</b></div>)}</div>
           <div className="remark">« {remark} »</div>
         </div>
-        <div className="grade"><b>{kind === 'gameover' ? '✗' : stats.grade}</b></div>
+        <div className="grade"><b>{kind === 'gameover' ? '0/20' : stats.grade}</b></div>
         <div className="result-actions"><MenuButtons items={items} /></div>
       </div>
     </div>

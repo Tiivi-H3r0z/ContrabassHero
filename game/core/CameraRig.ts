@@ -13,6 +13,8 @@ export class CameraRig {
   shakeEnabled = true;
   private t = 0;
   lookAhead = new THREE.Vector3();
+  private roll = 0;
+  addRoll(v: number) { this.roll += v; }
 
   constructor(aspect: number) {
     this.camera = new THREE.PerspectiveCamera(38, aspect, 0.5, 900);
@@ -43,6 +45,8 @@ export class CameraRig {
     } else {
       this.camera.lookAt(look);
     }
+    if (this.shakeEnabled && Math.abs(this.roll) > 0.001) this.camera.rotateZ(this.roll);
+    this.roll *= Math.pow(0.004, dt);
     this.trauma = Math.max(0, this.trauma - dt * 1.6);
   }
 

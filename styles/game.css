@@ -2,6 +2,7 @@
   --void: #03111a; --void-2: #082233; --void-3: #0e3346; --ink: #01060a; --bone: #e8fbff; --fog: #86aebf;
   --power: #00ffd5; --ui: #4da3ff; --combo: #ff3d8b; --reward: #ffc21a; --danger: #ff5a1a;
   --f-logo: "Rubik Wet Paint", "Luckiest Guy", Impact, sans-serif;
+  --f-goth: "UnifrakturMaguntia", "Old English Text MT", serif;
   --f-shout: "Luckiest Guy", Impact, "Arial Black", sans-serif;
   --f-ui: "Chakra Petch", "Barlow", ui-sans-serif, sans-serif;
   --f-body: "Barlow", ui-sans-serif, system-ui, sans-serif;
@@ -39,7 +40,7 @@ button { font: inherit; color: inherit; }
 .title { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; padding: 0 6vw; pointer-events: none; }
 .title-left { pointer-events: auto; display: flex; flex-direction: column; gap: 28px; }
 .title .logo { font-size: clamp(64px, 9vw, 150px); }
-.title .pitch { max-width: 44ch; font-size: 18px; color: var(--bone); text-shadow: 2px 2px 0 var(--ink); }
+.title .pitch { max-width: 40ch; font-size: 22px; font-weight: 800; color: var(--bone); text-shadow: 2px 2px 0 var(--ink); }
 .title .pitch b { color: var(--power); }
 .menu-list { display: flex; flex-direction: column; gap: 18px; align-items: flex-start; padding-left: 40px; }
 .press { font-family: var(--f-shout); font-size: 30px; color: var(--reward); text-shadow: 4px 4px 0 var(--ink); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; animation: blink 1s steps(2) infinite; }
@@ -213,3 +214,38 @@ button { font: inherit; color: inherit; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation-duration: .01s !important; transition: none !important; } }
 @media (max-height: 700px) { .title-foot { display: none; } .title .logo { font-size: clamp(56px, 7vw, 110px); } }
+
+/* ---------- Carnage edition ---------- */
+.logo.goth { font-family: var(--f-goth); -webkit-text-stroke: 0; text-shadow: 0 0 40px color-mix(in srgb, var(--power) 70%, transparent), 7px 8px 0 var(--ink); letter-spacing: -.01em; }
+.logo.goth small { font-family: var(--f-shout); -webkit-text-stroke: 3px var(--ink); }
+.stamp { align-self: flex-start; font-family: var(--f-shout); font-size: 22px; letter-spacing: .06em; color: var(--combo); border: 4px solid var(--combo); padding: 4px 14px 2px; transform: rotate(-7deg); box-shadow: 0 0 0 3px var(--ink), 5px 5px 0 3px var(--ink); background: color-mix(in srgb, var(--ink) 70%, transparent); text-shadow: 0 0 14px color-mix(in srgb, var(--combo) 60%, transparent); }
+.hud-combo .dyn.goth { font-family: var(--f-goth); font-style: normal; font-size: 54px; color: var(--combo); text-shadow: 4px 4px 0 var(--ink), 0 0 24px var(--combo); animation: shake .09s infinite; }
+.hud-combo .dyn.goth small { font-family: var(--f-ui); font-size: 13px; color: var(--bone); letter-spacing: .1em; text-shadow: 2px 2px 0 var(--ink); }
+.hud-combo.carnage .n { color: #fff; text-shadow: 6px 6px 0 var(--ink), 0 0 30px var(--combo); }
+.metro { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 8px; }
+.metro i { width: 14px; height: 14px; border: 2px solid var(--ink); background: var(--void-3); transform: skewX(-12deg); transition: background .06s, transform .06s; }
+.metro i.on { background: var(--power); box-shadow: 0 0 12px var(--power); transform: skewX(-12deg) scale(1.35); }
+.metro i:first-child.on { background: var(--combo); box-shadow: 0 0 14px var(--combo); }
+.finale-prompt { position: absolute; left: 50%; top: 62%; transform: translateX(-50%); text-align: center; animation: promptPulse .5s ease-in-out infinite alternate; }
+.finale-prompt b { display: block; font-family: var(--f-goth); font-weight: 400; font-size: 64px; line-height: 1; color: var(--reward); text-shadow: 5px 5px 0 var(--ink), 0 0 28px color-mix(in srgb, var(--reward) 60%, transparent); }
+.finale-prompt span { font-family: var(--f-ui); font-weight: 700; font-size: 14px; letter-spacing: .2em; background: var(--ink); color: var(--bone); padding: 3px 10px; border: 2px solid var(--reward); }
+@keyframes promptPulse { to { transform: translateX(-50%) scale(1.1) rotate(-2deg); } }
+.finale-card { position: absolute; inset: 0; overflow: hidden; pointer-events: none; background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--reward) 30%, transparent), color-mix(in srgb, var(--ink) 75%, transparent) 70%); animation: finIn .9s cubic-bezier(.22,1,.36,1) forwards; }
+.finale-card .rays { position: absolute; inset: -60%; background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--reward) 25%, transparent) 0 6deg, transparent 6deg 18deg); animation: spin 6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.finale-card img { position: absolute; left: 6%; bottom: -4%; height: 78%; filter: drop-shadow(10px 10px 0 var(--ink)); animation: nameIn .4s cubic-bezier(.34,1.56,.64,1) both; }
+.finale-card .fc-t { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+.finale-card .fc-t b { display: block; font-family: var(--f-goth); font-weight: 400; font-size: clamp(80px, 13vw, 190px); line-height: .9; color: var(--reward); text-shadow: 8px 8px 0 var(--ink), 0 0 60px color-mix(in srgb, var(--reward) 50%, transparent); animation: stampIn .35s cubic-bezier(.34,1.56,.64,1) both; }
+.finale-card .fc-t span { display: block; margin-top: 6px; font-family: var(--f-shout); font-size: clamp(18px, 2.4vw, 30px); color: var(--bone); -webkit-text-stroke: 1.5px var(--ink); paint-order: stroke fill; text-shadow: 3px 3px 0 var(--ink); }
+@keyframes stampIn { from { transform: scale(2.6) rotate(-8deg); opacity: 0; } }
+@keyframes finIn { 0% { opacity: 0; } 8% { opacity: 1; } 45% { opacity: 1; } 100% { opacity: 0; } }
+.bossintro .nm b { font-family: var(--f-goth); -webkit-text-stroke: 0; }
+.goth-title { margin: 0; font-family: var(--f-goth); font-weight: 400; font-size: clamp(54px, 8vw, 96px); line-height: .95; text-shadow: 6px 6px 0 var(--ink); }
+.gameover-card .goth-title { color: var(--bone); }
+.victory-card .goth-title { color: var(--power); }
+.result-card:not(.gameover-card):not(.victory-card) .goth-title { color: var(--combo); }
+.gameover-card .grade b { color: var(--danger); font-size: 90px; }
+.g-pop-sfx { color: var(--bone); font-size: 26px; letter-spacing: .02em; }
+.g-pop-beat { color: var(--power); font-size: 22px; text-shadow: 3px 3px 0 var(--ink), 0 0 16px var(--power); }
+.g-pop-goth { font-family: var(--f-goth); color: var(--reward); font-size: 46px; -webkit-text-stroke: 2px var(--ink); text-shadow: 4px 4px 0 var(--ink), 0 0 24px color-mix(in srgb, var(--reward) 60%, transparent); }
+.cutin b { font-family: var(--f-goth); -webkit-text-stroke: 0; text-shadow: 7px 7px 0 var(--ink); }

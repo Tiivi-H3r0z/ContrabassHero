@@ -1,0 +1,181 @@
+
+import React, { useState, useCallback, useEffect } from 'react';
+import { GameCanvas } from './components/GameCanvas';
+import { UIOverlay } from './components/UIOverlay';
+import { GameStateStatus, CharacterType, GameSettings } from './types';
+import { CONSTANTS } from './constants';
+import { setMasterVolume } from './services/audioService';
+
+const App: React.FC = () => {
+  const [gameState, setGameState] = useState<GameStateStatus>(GameStateStatus.MENU);
+  const [score, setScore] = useState(0);
+  const [wave, setWave] = useState(1);
+  const [stage, setStage] = useState(1); // 1 = School, 2 = Mountain
+  const [playerLives, setPlayerLives] = useState(5);
+  const [killCount, setKillCount] = useState(0);
+  const [showBossIntro, setShowBossIntro] = useState(false);
+  const [showStageComplete, setShowStageComplete] = useState(false);
+  const [character, setCharacter] = useState<CharacterType>('armand');
+  
+  // Special Power Animation State
+  const [specialPowerName, setSpecialPowerName] = useState("");
+  const [showSpecialAnim, setShowSpecialAnim] = useState(false);
+  
+  // Settings
+  const [settings, setSettings] = useState<GameSettings>(CONSTANTS.DEFAULT_SETTINGS);
+  
+  // Debug / State Logic
+  const [spawnThreshold, setSpawnThreshold] = useState(CONSTANTS.BOSS.SPAWN_KILLS);
+  const [isDebugMode, setIsDebugMode] = useState(false);
+
+  // Pause
+  const [isPaused, setIsPaused] = useState(false);
+  
+  // Force remount of GameCanvas to reset WebGL context cleanly on new game
+  const [gameId, setGameId] = useState(0);
+
+  const startGame = useCallback((selectedChar: CharacterType) => {
+    setScore(0);
+    setWave(1);
+    setStage(1);
+    setPlayerLives(5);
+    setKillCount(0);
+    setShowBossIntro(false);
+    setShowStageComplete(false);
+    setCharacter(selectedChar);
+    setGameState(GameStateStatus.PLAYING);
+    setGameId(prev => prev + 1); // FORCE NEW GAME INSTANCE
+    
+    // Reset debug state
+    setSpawnThreshold(CONSTANTS.BOSS.SPAWN_KILLS);
+    setIsDebugMode(false);
+  }, []);
+
+  // Restart uses current character
+  const restartGame = useCallback(() => {
+    startGame(character);
+  }, [character, startGame]);
+
+  const handleGameOver = useCallback(() => {
+    setGameState(GameStateStatus.GAME_OVER);
+    setShowBossIntro(false);
+  }, []);
+
+  const handleLoseLife = useCallback(() => {
+    setPlayerLives(prev => {
+      const next = prev - 1;
+      if (next <= 0) handleGameOver();
+      return next;
+    });
+  }, [handleGameOver]);
+
+  const backToMenu = useCallback(() => {
+    setGameState(GameStateStatus.MENU);
+    setIsPaused(false);
+  }, []);
+
+  const togglePause = useCallback(() => {
+    setIsPaused(prev => !prev);
+  }, []);
+
+  const handleBossEnter = useCallback(() => {
+    setShowBossIntro(true);
+    setTimeout(() => setShowBossIntro(false), 3500);
+  }, []);
+
+  const handleStageAdvance = useCallback(() => {
+    setShowStageComplete(true);
+    setTimeout(() => {
+      setStage(prev => prev + 1);
+      setKillCount(0);
+      setGameId(prev => prev + 1);
+      setShowStageComplete(false);
+    }, 3000);
+  }, []);
+
+  const handleVictory = useCallback(() => {
+    setGameState(GameStateStatus.VICTORY);
+  }, []);
+
+  const handleSpecialUsed = useCallback((name: string) => {
+      setSpecialPowerName(name);
+      setShowSpecialAnim(true);
+      setTimeout(() => setShowSpecialAnim(false), 2000);
+  }, []);
+  
+  const handleDebug = useCallback(() => {
+      setIsDebugMode(prev => {
+          const next = !prev;
+          setSpawnThreshold(next ? 1 : CONSTANTS.BOSS.SPAWN_KILLS);
+          return next;
+      });
+  }, []);
+
+  const updateSettings = useCallback((newSettings: GameSettings) => {
+      setSettings(newSettings);
+      setMasterVolume(newSettings.volume);
+  }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (gameState !== GameStateStatus.PLAYING) return;
+        if (e.key.toLowerCase() === 't') handleDebug();
+        if (e.key === 'Escape') { e.preventDefault(); togglePause(); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleDebug, togglePause, gameState]);
+
+  return (
+    <div className="relative w-full h-screen bg-gray-900 overflow-hidden">
+      {gameState !== GameStateStatus.MENU && (
+        <GameCanvas
+          key={gameId} // Unmount/Remount on restart
+          gameState={gameState}
+          character={character}
+          stage={stage}
+          spawnThreshold={spawnThreshold}
+          isDebugMode={isDebugMode}
+          isPaused={isPaused}
+          settings={settings}
+          setScore={setScore}
+          setWave={setWave}
+          setStage={setStage}
+          setKillCount={setKillCount}
+          onLoseLife={handleLoseLife}
+          onGameOver={handleGameOver}
+          onBossEnter={handleBossEnter}
+          onSpecialUsed={handleSpecialUsed}
+          onStageAdvance={handleStageAdvance}
+          onVictory={handleVictory}
+        />
+      )}
+      
+      <UIOverlay
+        gameState={gameState}
+        score={score}
+        wave={wave}
+        stage={stage}
+        playerLives={playerLives}
+        killCount={killCount}
+        showBossIntro={showBossIntro}
+        showStageComplete={showStageComplete}
+        specialPowerName={specialPowerName}
+        showSpecialAnim={showSpecialAnim}
+        spawnThreshold={spawnThreshold}
+        isDebugMode={isDebugMode}
+        settings={settings}
+        isPaused={isPaused}
+        onTogglePause={togglePause}
+        onStart={startGame}
+        onRestart={restartGame}
+        onDebug={handleDebug}
+        onUpdateSettings={updateSettings}
+        onBackToMenu={backToMenu}
+      />
+    </div>
+  );
+};
+
+export default App;

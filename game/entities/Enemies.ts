@@ -7,7 +7,8 @@ import { audio } from '../audio/audio';
 import { TEACHER_BARKS } from '../data/dialogues';
 import { inQuad, outQuad } from '../core/anim';
 
-export type EnemyState = 'spawn' | 'chase' | 'windup' | 'lunge' | 'recover' | 'stun' | 'air' | 'fall' | 'dying';
+export type EnemyState = 'spawn' | 'chase' | 'windup' | 'lunge' | 'recover' | 'stun' | 'air' | 'fall' | 'dying' | 'flat' | 'stake';
+export type KillStyle = 'pop' | 'flat' | 'stake';
 
 export interface Enemy {
   id: number;
@@ -38,6 +39,8 @@ export interface Enemy {
   sqv: number;
   spin: number;
   lungeDir: THREE.Vector3;
+  killStyle: KillStyle;
+  credited: boolean;
 }
 
 export interface HitInfo {
@@ -51,6 +54,7 @@ export interface HitInfo {
   crit?: boolean;
   quiet?: boolean;
   color?: THREE.ColorRepresentation;
+  style?: KillStyle;
 }
 
 const tmpO = new THREE.Object3D();
@@ -114,7 +118,7 @@ export class Enemies {
       hp: s.hp * hpMul, maxHp: s.hp * hpMul, radius: s.radius * (mutant ? 1.35 : 1), mass: s.mass * (mutant ? 1.8 : 1),
       state: 'spawn', t: 0, flash: 0, facing: Math.atan2(-at.x, -at.z), phase: Math.random() * 10,
       hitTags: new Map(), cd: 1 + Math.random() * 1.5, mutant, scaleMul: mutant ? 1.35 : 1, buffed: false,
-      dotTimer: 0, contaminated: 0, squash: -0.3, sqv: 0, spin: 0, lungeDir: new THREE.Vector3(),
+      dotTimer: 0, contaminated: 0, squash: -0.3, sqv: 0, spin: 0, lungeDir: new THREE.Vector3(), killStyle: 'pop', credited: false,
     };
     if (mode === 'edge') {
       e.y = -5; e.vy = 17; e.squash = -0.5;
@@ -147,7 +151,7 @@ export class Enemies {
   }
 
   hit(e: Enemy, h: HitInfo): boolean {
-    if (!e.alive || e.state === 'dying' || e.state === 'fall' || e.state === 'spawn' && e.y < -1) return false;
+    if (!e.alive || e.state === 'dying' || e.state === 'fall' || e.state === 'flat' || e.state === 'stake' || e.state === 'spawn' && e.y < -1) return false;
     const last = e.hitTags.get(h.tag);
     if (last !== undefined) return false;
     e.hitTags.set(h.tag, this.game.time);
@@ -162,6 +166,7 @@ export class Enemies {
       if (d < 1.1) { blocked = true; dmg *= 0.2; kb *= 0.25; }
     }
     e.hp -= dmg;
+    e.killStyle = h.style ?? 'pop';
     e.flash = 1;
     e.squash = Math.max(e.squash, 0.3);
     e.sqv += 6;
@@ -187,34 +192,66 @@ export class Enemies {
       if (!h.quiet) audio.play('shieldHit');
       this.game.fx.burst(head, PAL.bone, 6, 8, { size: 0.25, life: 0.25 });
     } else if (!h.quiet) {
-      if (h.crit || dmg >= 28) this.game.overlay.pop(String(Math.round(dmg)), head, h.crit ? 'crit' : 'dmg');
+      if (h.crit || dmg >= 60) this.game.overlay.pop(String(Math.round(dmg)), head, h.crit ? 'crit' : 'dmg');
       this.game.fx.burst(head, h.color ?? PAL.bone, h.crit ? 14 : 7, h.crit ? 16 : 11, { size: 0.3, life: 0.3, up: 0.9 });
     }
     this.game.onEnemyHit(e, dmg, !!h.crit, blocked);
-    if (e.hp <= 0 && e.state !== 'air') this.kill(e, false);
+    if (e.hp <= 0) this.kill(e, false);
     return true;
   }
 
+  private credit(e: Enemy, out: boolean) {
+    if (e.credited) return;
+    e.credited = true;
+    this.game.onEnemyKilled(e, out);
+  }
+
   kill(e: Enemy, out: boolean) {
-    if (!e.alive || e.state === 'dying') return;
-    if (out) {
-      e.state = 'fall';
-      e.t = 0;
+    if (!e.alive || e.state === 'dying' || e.state === 'flat' || e.state === 'stake') return;
+    if (out) { e.state = 'fall'; e.t = 0; return; }
+    const g = this.game;
+    this.credit(e, false);
+    e.t = 0;
+    if (e.y > 0.8) {
+      // juggle kill: bursts in mid-air into a rain of notes
+      const p = v1.set(e.pos.x, e.y + 1.4, e.pos.z);
+      g.fx.burst(p, PAL.power, 16, 16, { size: 0.4, life: 0.6, up: 1.4 });
+      g.fx.burst(p, PAL.combo, 8, 12, { size: 0.35, life: 0.5, up: 1.2 });
+      g.fx.debris(p, [PAL.ink, '#ffffff', PAL.bone], 14, 15, 0.4);
+      g.fx.splat(e.pos, 2.4);
+      g.killWord('juggle', p);
+      audio.play('teacherDie', { pitch: 1.2 });
+      this.release(e);
       return;
     }
-    e.state = 'dying';
-    e.t = 0;
+    if (e.killStyle === 'flat') {
+      e.state = 'flat';
+      g.fx.splat(e.pos, 3.4 + e.radius);
+      g.fx.debris(v1.set(e.pos.x, 0.8, e.pos.z), [PAL.ink, '#ffffff', '#7a2a2a'], 10, 11, 0.4);
+      g.fx.ring(e.pos, PAL.bone, 0.4, 3, 0.25, 1.4);
+      g.killWord('flat', v1.set(e.pos.x, 2, e.pos.z));
+      audio.play('smash', { pitch: 1.5, volume: 0.5 });
+    } else if (e.killStyle === 'stake') {
+      e.state = 'stake';
+      g.fx.ring(e.pos, PAL.bone, 0.4, 2.4, 0.25, 1.4);
+      g.killWord('stake', v1.set(e.pos.x, 3, e.pos.z));
+      audio.play('block', { pitch: 0.6 });
+    } else {
+      e.state = 'dying';
+    }
   }
 
   private finalize(e: Enemy, out: boolean) {
     const p = v1.set(e.pos.x, Math.max(0.5, e.y + 1.4), e.pos.z);
     if (!out) {
-      this.game.fx.debris(p, [PAL.bone, '#f4efe6', PAL.ink], 10 + (e.mutant ? 8 : 0), 13, 0.45);
-      this.game.fx.burst(p, PAL.bone, 10, 12, { size: 0.35, life: 0.35 });
-      this.game.fx.splat(e.pos, 2.2 + e.radius * 1.4);
+      this.game.fx.debris(p, [PAL.ink, PAL.ink, '#ffffff', '#f4efe6', PAL.bone], 16 + (e.mutant ? 10 : 0), 15, 0.42);
+      this.game.fx.burst(p, PAL.bone, 12, 14, { size: 0.38, life: 0.4 });
+      this.game.fx.burst(p, PAL.power, 6, 12, { size: 0.3, life: 0.5, up: 1.3 });
+      this.game.fx.splat(e.pos, 2.6 + e.radius * 1.6);
+      if (e.state === 'dying') this.game.killWord('pop', p);
       audio.play('teacherDie', { pitch: 0.9 + Math.random() * 0.25 });
     }
-    this.game.onEnemyKilled(e, out);
+    this.credit(e, out);
     this.release(e);
   }
 
@@ -354,7 +391,16 @@ export class Enemies {
           break;
         case 'dying':
           e.vel.multiplyScalar(Math.pow(0.001, dt));
-          if (e.t > 0.18) { this.finalize(e, false); continue; }
+          if (e.t > 0.16) { this.finalize(e, false); continue; }
+          break;
+        case 'flat':
+          e.vel.set(0, 0, 0);
+          if (e.t > 1.3) { this.release(e); continue; }
+          break;
+        case 'stake':
+          e.vel.set(0, 0, 0);
+          e.y = -2.1 * Math.min(1, e.t / 0.3) * Math.min(1, e.t / 0.3);
+          if (e.t > 0.85) { e.y = 0.2; e.state = 'dying'; e.t = 0.1; }
           break;
       }
 
@@ -383,10 +429,10 @@ export class Enemies {
     const hero = this.game.hero;
     for (let i = 0; i < L.length; i++) {
       const a = L[i];
-      if (!a.alive || a.state === 'fall' || a.state === 'spawn') continue;
+      if (!a.alive || a.state === 'fall' || a.state === 'spawn' || a.state === 'flat' || a.state === 'stake') continue;
       for (let j = i + 1; j < L.length; j++) {
         const b = L[j];
-        if (!b.alive || b.state === 'fall' || b.state === 'spawn') continue;
+        if (!b.alive || b.state === 'fall' || b.state === 'spawn' || b.state === 'flat' || b.state === 'stake') continue;
         const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z;
         const rr = a.radius + b.radius;
         if (dx > rr || dx < -rr || dz > rr || dz < -rr) continue;
@@ -437,10 +483,10 @@ export class Enemies {
       if (e.state === 'air' || e.state === 'fall') { rx = e.phase * e.spin; rz = e.phase * e.spin * 0.6; }
       tmpO.rotation.set(rx, e.facing, rz, 'YXZ');
       let sc = e.scaleMul;
-      if (e.state === 'dying') sc *= 1 + 0.7 * inQuad(e.t / 0.18);
+      if (e.state === 'dying') sc *= 1 + 0.75 * inQuad(e.t / 0.16);
       if (e.state === 'spawn' && e.y < 0) sc *= Math.max(0.3, 1 + e.y / 8);
       const airStretch = e.state === 'air' || e.state === 'spawn' ? Math.min(0.35, Math.abs(e.vy) * 0.018) : 0;
-      const sq = e.squash - airStretch + (walking ? (0.5 - gait) * 0.14 : 0);
+      const sq = e.state === 'flat' ? 0.92 : e.squash - airStretch + (walking ? (0.5 - gait) * 0.14 : 0);
       const sy = 1 - sq, sxz = 1 + sq * 0.55;
       tmpO.scale.set(sc * sxz, sc * sy, sc * sxz);
       tmpO.updateMatrix();
@@ -464,15 +510,18 @@ export class Enemies {
     });
   }
 
+  // Rewrite instance matrices without simulating (used while the world is frozen, e.g. Finales).
+  refresh() { this.writeInstances([]); }
+
   addShadows() {
     const fx = this.game.fx;
-    for (const e of this.list) if (e.state !== 'fall' && e.y > -0.5) fx.addShadow(e.pos.x, e.pos.z, e.radius * 2.6, e.y);
+    for (const e of this.list) if (e.state !== 'fall' && e.state !== 'flat' && e.y > -0.5) fx.addShadow(e.pos.x, e.pos.z, e.radius * 2.6, e.y);
   }
 
   nearest(p: THREE.Vector3, maxDist = Infinity, exclude?: Set<number>): Enemy | null {
     let best: Enemy | null = null, bd = maxDist * maxDist;
     for (const e of this.list) {
-      if (!e.alive || e.state === 'dying' || e.state === 'fall' || e.state === 'spawn') continue;
+      if (!e.alive || e.state === 'dying' || e.state === 'fall' || e.state === 'spawn' || e.state === 'flat' || e.state === 'stake') continue;
       if (exclude?.has(e.id)) continue;
       const d = e.pos.distanceToSquared(p);
       if (d < bd) { bd = d; best = e; }

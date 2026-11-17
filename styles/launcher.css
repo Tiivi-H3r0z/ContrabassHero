@@ -1,0 +1,55 @@
+:root { color-scheme: dark; --void:#03111a; --void-2:#082233; --void-3:#0e3346; --ink:#01060a; --bone:#e8fbff; --fog:#86aebf; --power:#00ffd5; --combo:#ff3d8b; --reward:#ffc21a; --danger:#ff5a1a; }
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; background: var(--ink); color: var(--bone); font-family: "Barlow", ui-sans-serif, system-ui, sans-serif; overflow: hidden; user-select: none; }
+.lx { position: fixed; inset: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; padding: 4vh 4vw 3vh; background: radial-gradient(ellipse at 50% 0%, #0e3346 0%, var(--void) 45%, var(--ink) 100%); }
+.lx::after { content: ""; position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(rgba(232,251,255,.05) 1px, transparent 1.4px); background-size: 6px 6px; }
+.lx-bg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.lx-head { position: relative; z-index: 1; }
+.lx-eyebrow { display: inline-block; font: 700 13px "Chakra Petch", sans-serif; letter-spacing: .24em; text-transform: uppercase; color: var(--ink); background: var(--power); padding: 4px 12px; transform: skewX(-10deg); box-shadow: 4px 4px 0 var(--ink); }
+.lx-title { margin: 10px 0 0; font-family: "UnifrakturMaguntia", serif; font-weight: 400; font-size: clamp(52px, 8vw, 116px); line-height: .95; text-shadow: 6px 6px 0 var(--ink), 0 0 30px rgba(0,255,213,.25); }
+.lx-title em { font-style: normal; color: var(--combo); }
+.lx-cards { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2.4vw; align-items: center; padding: 3vh 0; }
+.lx-card { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; height: min(62vh, 600px); padding: 0; text-align: left; color: var(--bone); font: inherit; cursor: pointer; border: 4px solid var(--ink); box-shadow: 10px 10px 0 var(--ink); overflow: hidden; transform: scale(.94); filter: saturate(.55) brightness(.75); transition: transform .18s cubic-bezier(.34,1.56,.64,1), filter .18s, box-shadow .18s; }
+.lx-card.on { transform: scale(1.02) rotate(-1deg); filter: none; box-shadow: 16px 16px 0 var(--ink); z-index: 2; }
+.lx-poster { position: relative; overflow: hidden; display: grid; place-items: end center; }
+.lx-poster img { height: 108%; max-width: 100%; object-fit: contain; filter: drop-shadow(8px 8px 0 var(--ink)); transform: translateY(6%); }
+.lx-body { padding: 16px 20px 20px; background: var(--ink); border-top: 4px solid var(--ink); display: flex; flex-direction: column; gap: 6px; }
+.lx-tag { font: 700 12px "Chakra Petch", sans-serif; letter-spacing: .2em; text-transform: uppercase; color: var(--fog); }
+.lx-name { line-height: 1; }
+.lx-body p { margin: 4px 0 0; font-size: 16px; line-height: 1.35; color: var(--bone); }
+.lx-body ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; color: var(--fog); }
+.lx-go { margin-top: 10px; align-self: flex-start; font-family: "Luckiest Guy", Impact, sans-serif; font-size: 20px; padding: 6px 14px 3px; border: 3px solid var(--ink); background: var(--bone); color: var(--ink); transform: skewX(-9deg); box-shadow: 4px 4px 0 #000; opacity: 0; transition: opacity .15s; }
+.lx-card.on .lx-go { opacity: 1; }
+.lx-badge { position: absolute; top: 16px; right: -46px; z-index: 3; transform: rotate(35deg); background: var(--reward); color: var(--ink); font-family: "Luckiest Guy", Impact, sans-serif; font-size: 18px; padding: 5px 56px 2px; border-block: 3px solid var(--ink); }
+
+/* V1: pixel era */
+.c1 .lx-poster { background: #1a1a1a; background-image: linear-gradient(rgba(255,255,255,.04) 2px, transparent 2px), linear-gradient(90deg, rgba(255,255,255,.04) 2px, transparent 2px); background-size: 24px 24px; }
+.c1 .lx-poster::before { content: ""; position: absolute; inset: auto 0 0 0; height: 30%; background: repeating-linear-gradient(90deg, #2a2a30 0 24px, #33333a 24px 48px); }
+.c1 .lx-poster img.pix { image-rendering: pixelated; height: 92%; position: relative; filter: drop-shadow(6px 6px 0 #000); transform: none; }
+.c1 .lx-name { font-family: "Press Start 2P", monospace; font-size: clamp(22px, 2.4vw, 34px); color: #facc15; text-shadow: 4px 4px 0 #000; margin: 6px 0 4px; }
+.c1 .lx-body { background: #111; }
+
+/* V2: neon era */
+.c2 .lx-poster { background: radial-gradient(circle at 50% 60%, rgba(0,255,213,.45), transparent 55%), conic-gradient(from 0deg at 50% 60%, #0a3a3a, var(--void) 12%, #0f4a48 24%, var(--void) 36%, #0a3a3a 50%, var(--void) 62%, #0f4a48 76%, var(--void) 88%, #0a3a3a); }
+.c2 .lx-name { font-family: "Luckiest Guy", Impact, sans-serif; font-size: clamp(40px, 4.4vw, 64px); color: var(--power); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; text-shadow: 5px 5px 0 #000, 0 0 20px rgba(0,255,213,.5); }
+.c2 .lx-body { background: var(--void-2); }
+
+/* V3: carnage era */
+.c3 .lx-poster { background: radial-gradient(circle at 50% 55%, rgba(255,61,139,.55), transparent 55%), repeating-conic-gradient(from 0deg at 50% 60%, rgba(255,194,26,.14) 0 6deg, transparent 6deg 18deg), #12040a; }
+.c3 .lx-poster::after { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(1,6,10,.6) 1.2px, transparent 1.7px); background-size: 8px 8px; mix-blend-mode: multiply; }
+.c3 .lx-poster img { position: relative; z-index: 1; }
+.c3 .lx-poster img.boss { position: absolute; z-index: 0; height: 70%; left: -18%; top: -6%; opacity: .55; filter: saturate(.4) drop-shadow(6px 6px 0 var(--ink)); transform: rotate(-12deg); }
+.c3 .lx-name { font-family: "UnifrakturMaguntia", serif; font-size: clamp(48px, 5vw, 76px); color: var(--combo); text-shadow: 5px 5px 0 #000, 0 0 26px rgba(255,61,139,.55); }
+.c3 .lx-body { background: #12040a; }
+.c3.on { animation: thrash .12s infinite; }
+@keyframes thrash { 50% { transform: scale(1.02) rotate(-1.4deg) translate(1px, -1px); } }
+
+.lx-foot { position: relative; z-index: 1; font: 700 12px "Chakra Petch", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--fog); text-align: center; }
+.kbd { display: inline-block; padding: 1px 7px; border: 2px solid var(--ink); background: var(--void-3); color: var(--bone); box-shadow: 2px 2px 0 var(--ink); }
+
+@media (max-width: 900px) {
+  .lx { overflow-y: auto; }
+  .lx-cards { grid-template-columns: 1fr; }
+  .lx-card { height: auto; grid-template-rows: 220px auto; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

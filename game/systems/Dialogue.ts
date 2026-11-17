@@ -3,6 +3,7 @@ import type { Line, Speaker } from '../data/dialogues';
 import { CHARACTERS } from '../../types';
 import { BOSS_INFO } from '../bosses/Boss';
 import { audio } from '../audio/audio';
+import { music } from '../audio/music';
 
 const HERO_NAMES: Record<string, string> = { armand: 'ARMAND', adrien: 'ADRIEN', eliot: 'ELIOT', swan: 'SWAN', pierre: 'PIERRE', audrey: 'AUDREY' };
 
@@ -36,7 +37,7 @@ export class Dialogue {
     this.blocking = blocking;
     this.onDone = onDone ?? null;
     this.game.cutscene = blocking;
-    if (blocking) { audio.music.duck(0.5, 60); this.game.overlay.clearBubbles(); }
+    if (blocking) { music.duck(0.5, 60); this.game.overlay.clearBubbles(); }
     this.next();
   }
 
@@ -56,7 +57,7 @@ export class Dialogue {
       const wasBlocking = this.blocking;
       this.blocking = false;
       this.game.cutscene = false;
-      if (wasBlocking) audio.music.duck(0, 0.01);
+      if (wasBlocking) music.duck(0, 0.01);
       const cb = this.onDone;
       this.onDone = null;
       cb?.();

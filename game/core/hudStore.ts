@@ -13,6 +13,7 @@ export interface DialogueView {
 export interface BannerView { id: number; title: string; subtitle: string; time: number }
 export interface CutinView { id: number; hero: CharacterType; name: string }
 export interface BossIntroView { id: number; boss: string; name: string; title: string }
+export interface FinaleView { id: number; name: string; hero: CharacterType; line: string }
 
 export interface HudState {
   hero: CharacterType;
@@ -36,6 +37,9 @@ export interface HudState {
   bossIntro: BossIntroView | null;
   hint: string;
   hurt: number;
+  beat: number;
+  finale: FinaleView | null;
+  finalePrompt: boolean;
 }
 
 type Listener = () => void;

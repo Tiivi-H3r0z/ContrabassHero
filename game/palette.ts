@@ -24,10 +24,10 @@ export const HERO_COLORS: Record<CharacterType, string> = {
   audrey: '#ff5fd2',
 };
 
-export const NUANCES = ['pp', 'p', 'mf', 'f', 'ff', 'fff'] as const;
-export const NUANCE_NAMES = ['pianissimo', 'piano', 'mezzo-forte', 'forte', 'fortissimo', 'fortississimo'];
-export const NUANCE_THRESHOLDS = [0, 10, 20, 35, 50, 80];
-export const NUANCE_MULT = [1, 1.2, 1.5, 2, 3, 5];
+export const NUANCES = ['pp', 'p', 'mf', 'f', 'ff', 'fff', 'CARNAGE'] as const;
+export const NUANCE_NAMES = ['pianissimo', 'piano', 'mezzo-forte', 'forte', 'fortissimo', 'fortississimo', 'carnage'];
+export const NUANCE_THRESHOLDS = [0, 10, 20, 35, 50, 80, 120];
+export const NUANCE_MULT = [1, 1.2, 1.5, 2, 3, 5, 8];
 
 export const nuanceOf = (combo: number) => {
   let n = 0;

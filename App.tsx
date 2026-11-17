@@ -9,6 +9,7 @@ import { DEFAULT_KEYS } from './game/core/Input';
 import { MenuScene } from './game/MenuScene';
 import { getPortraits, Portraits } from './game/portraits';
 import { audio } from './game/audio/audio';
+import { music } from './game/audio/music';
 
 type Screen = 'title' | 'select' | 'playing' | 'clear' | 'gameover' | 'victory';
 
@@ -26,7 +27,7 @@ const newRun = (character: CharacterType, stage = 1): RunState => ({ character, 
 
 const makeHud = (run: RunState) => createHudStore({
   hero: run.character, stage: run.stage, lives: run.lives, maxLives: 5, score: run.score, combo: 0, comboTimer: 0, nuance: 0, special: 0,
-  kills: 0, quota: 1, bossActive: false, bossName: '', bossHp: 1, bossInvulnerable: false, banner: null, dialogue: null, cutin: null, bossIntro: null, hint: '', hurt: 0,
+  kills: 0, quota: 1, bossActive: false, bossName: '', bossHp: 1, bossInvulnerable: false, banner: null, dialogue: null, cutin: null, bossIntro: null, hint: '', hurt: 0, beat: 0, finale: null, finalePrompt: false,
 });
 
 const params = new URLSearchParams(location.search);
@@ -49,7 +50,8 @@ const App: React.FC = () => {
   useEffect(() => { setPortraits(getPortraits()); }, []);
 
   useEffect(() => {
-    audio.setVolumes(settings);
+    audio.setVolumes({ ...settings, music: 0 });
+    music.setVolume(settings.master * settings.music);
     try { localStorage.setItem('contrabass-settings', JSON.stringify(settings)); } catch { /* ignore */ }
   }, [settings]);
 
@@ -75,17 +77,17 @@ const App: React.FC = () => {
   useEffect(() => {
     const c = params.get('char') as CharacterType | null;
     const st = parseInt(params.get('stage') ?? '', 10);
-    if (c && CHARACTERS.includes(c)) { audio.init(); startStage(newRun(c, st >= 1 && st <= 7 ? st : 1)); }
+    if (c && CHARACTERS.includes(c)) { audio.init(); music.init(); startStage(newRun(c, st >= 1 && st <= 7 ? st : 1)); }
   }, []);
 
   const callbacks = useMemo(() => ({
     onStageClear: (r: RunState, s: StageStats) => { setRun(r); setStats(s); setScreen('clear'); },
-    onGameOver: (r: RunState, s: StageStats) => { setRun(r); setStats(s); setScreen('gameover'); audio.music.play('gameover'); },
+    onGameOver: (r: RunState, s: StageStats) => { setRun(r); setStats(s); setScreen('gameover'); },
     onVictory: (r: RunState, s: StageStats) => { setRun(r); setStats(s); setScreen('victory'); },
     onPauseRequest: () => setPaused((p) => !p),
   }), []);
 
-  const toTitle = () => { setPaused(false); setOptions(false); setScreen('title'); audio.music.play('menu'); };
+  const toTitle = () => { setPaused(false); setOptions(false); setScreen('title'); music.play('menu'); };
 
   return (
     <div className="app">
@@ -97,7 +99,7 @@ const App: React.FC = () => {
       {screen === 'select' && (
         <SelectScreen enabled={!options} selected={selected} setSelected={setSelected} portraits={portraits}
           onBack={() => setScreen('title')}
-          onConfirm={() => { menuScene.current?.celebrate(); audio.init(); setTimeout(() => startStage(newRun(selected)), 450); }} />
+          onConfirm={() => { menuScene.current?.celebrate(); audio.init(); music.init(); setTimeout(() => startStage(newRun(selected)), 450); }} />
       )}
       {screen === 'playing' && paused && !options && (
         <PauseScreen enabled={!options} onResume={() => setPaused(false)} onOptions={() => setOptions(true)} onQuit={toTitle} />
