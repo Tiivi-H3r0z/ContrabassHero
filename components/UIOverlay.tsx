@@ -9,7 +9,7 @@ interface UIOverlayProps {
   gameState: GameStateStatus;
   score: number;
   wave: number;
-  playerHealth: number;
+  playerLives: number;
   killCount: number;
   showBossIntro: boolean;
   showStageComplete: boolean;
@@ -34,7 +34,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
   gameState,
   score,
   wave,
-  playerHealth,
+  playerLives,
   killCount,
   showBossIntro,
   showStageComplete,
@@ -209,7 +209,9 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
       if (stage === 2) return "L'AIGLE\nEST LÀ";
       if (stage === 3) return "LE KAWIK\nSE RAPPROCHE";
       if (stage === 4) return "LE TATOO\nARRIVE";
-      return "LA TAUPE\nSURGIT";
+      if (stage === 5) return "LA TAUPE\nSURGIT";
+      if (stage === 6) return "NINJA PAIN\nBONDIT";
+      return "LE SERPENT\nS'ENROULE";
   }
 
   const displayKey = (k: string[]) => k[0] === ' ' ? 'SPACE' : k[0].toUpperCase().replace('ARROW', '');
@@ -311,17 +313,13 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
           <div className="flex flex-col gap-2">
              <div className="text-yellow-400 text-xl drop-shadow-lg filter bg-black/40 px-3 py-1 rounded">SCORE: {score.toLocaleString()}</div>
              
-             {/* Player Health Bar */}
-             <div className="w-64 h-8 bg-black/50 border-2 border-white/20 rounded-lg overflow-hidden relative shadow-inner">
-                <div 
-                    className={`h-full transition-all duration-300 ${playerHealth > 50 ? 'bg-green-500' : playerHealth > 25 ? 'bg-yellow-500' : 'bg-red-600'}`}
-                    style={{ width: `${Math.max(0, playerHealth)}%` }}
-                >
-                    <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"></div>
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center text-xs font-bold drop-shadow-md">
-                    HP: {Math.max(0, Math.ceil(playerHealth))} / 100
-                </div>
+             {/* Lives */}
+             <div className="flex gap-1">
+               {Array.from({ length: 5 }).map((_, i) => (
+                 <span key={i} className={`text-3xl drop-shadow-lg transition-all duration-300 ${i < playerLives ? 'opacity-100' : 'opacity-20 grayscale'}`}>
+                   ❤️
+                 </span>
+               ))}
              </div>
 
              <div className="text-purple-300 text-[10px] bg-black/40 px-3 py-1 rounded">
@@ -332,7 +330,7 @@ export const UIOverlay: React.FC<UIOverlayProps> = ({
           <div className="flex flex-col items-end gap-2">
             <div className="text-3xl text-red-500 animate-pulse drop-shadow-lg filter bg-black/40 px-3 py-1 rounded">STAGE {stage}</div>
             <div className="text-xs text-gray-300 bg-black/40 px-2 py-1 rounded">
-                {stage === 1 ? "Escape the School" : stage === 2 ? "Summit the Mountain" : stage === 3 ? "Survive the Garden" : stage === 4 ? "Cross the Desert" : "Survive the Volcano"}
+                {stage === 1 ? "Escape the School" : stage === 2 ? "Summit the Mountain" : stage === 3 ? "Survive the Garden" : stage === 4 ? "Cross the Desert" : stage === 5 ? "Survive the Volcano" : stage === 6 ? "Hunt in the Enchanted Garden" : "Survive the Jungle"}
             </div>
             {killCount >= spawnThreshold ? (
                 <div className="text-xl text-red-600 font-bold animate-bounce bg-black/40 px-2 rounded">BOSS ACTIVE</div>

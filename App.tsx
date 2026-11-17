@@ -11,7 +11,7 @@ const App: React.FC = () => {
   const [score, setScore] = useState(0);
   const [wave, setWave] = useState(1);
   const [stage, setStage] = useState(1); // 1 = School, 2 = Mountain
-  const [playerHealth, setPlayerHealth] = useState(100);
+  const [playerLives, setPlayerLives] = useState(5);
   const [killCount, setKillCount] = useState(0);
   const [showBossIntro, setShowBossIntro] = useState(false);
   const [showStageComplete, setShowStageComplete] = useState(false);
@@ -38,7 +38,7 @@ const App: React.FC = () => {
     setScore(0);
     setWave(1);
     setStage(1);
-    setPlayerHealth(100);
+    setPlayerLives(5);
     setKillCount(0);
     setShowBossIntro(false);
     setShowStageComplete(false);
@@ -60,6 +60,14 @@ const App: React.FC = () => {
     setGameState(GameStateStatus.GAME_OVER);
     setShowBossIntro(false);
   }, []);
+
+  const handleLoseLife = useCallback(() => {
+    setPlayerLives(prev => {
+      const next = prev - 1;
+      if (next <= 0) handleGameOver();
+      return next;
+    });
+  }, [handleGameOver]);
 
   const backToMenu = useCallback(() => {
     setGameState(GameStateStatus.MENU);
@@ -96,8 +104,11 @@ const App: React.FC = () => {
   }, []);
   
   const handleDebug = useCallback(() => {
-      setSpawnThreshold(1);
-      setIsDebugMode(true);
+      setIsDebugMode(prev => {
+          const next = !prev;
+          setSpawnThreshold(next ? 1 : CONSTANTS.BOSS.SPAWN_KILLS);
+          return next;
+      });
   }, []);
 
   const updateSettings = useCallback((newSettings: GameSettings) => {
@@ -131,8 +142,8 @@ const App: React.FC = () => {
           setScore={setScore}
           setWave={setWave}
           setStage={setStage}
-          setPlayerHealth={setPlayerHealth}
           setKillCount={setKillCount}
+          onLoseLife={handleLoseLife}
           onGameOver={handleGameOver}
           onBossEnter={handleBossEnter}
           onSpecialUsed={handleSpecialUsed}
@@ -146,7 +157,7 @@ const App: React.FC = () => {
         score={score}
         wave={wave}
         stage={stage}
-        playerHealth={playerHealth}
+        playerLives={playerLives}
         killCount={killCount}
         showBossIntro={showBossIntro}
         showStageComplete={showStageComplete}

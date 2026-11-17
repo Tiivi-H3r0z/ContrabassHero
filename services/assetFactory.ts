@@ -680,31 +680,122 @@ export const createGardenFloorTexture = (): THREE.Texture => {
   return tex;
 }
 
-export const createDeskTexture = (): THREE.Texture => {
-    const { canvas, ctx } = validContext(64, 64);
+const drawDesk = (ctx: CanvasRenderingContext2D, damage: 0|1|2|3 = 0) => {
+    // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.fillRect(6, 48, 52, 6);
-    ctx.fillStyle = '#8d6e63';
+    // Table surface — progressively darker/greyer
+    const surfaceColors = ['#8d6e63', '#7a5c52', '#624840', '#4a3028'];
+    ctx.fillStyle = surfaceColors[damage];
     ctx.fillRect(4, 16, 56, 32);
+    // Table edge
     ctx.fillStyle = '#5d4037';
-    ctx.fillRect(4, 44, 56, 4); 
-    ctx.fillStyle = '#fff';
+    ctx.fillRect(4, 44, 56, 4);
+    // Paper on desk
+    ctx.fillStyle = damage >= 2 ? 'rgba(200,200,200,0.4)' : '#fff';
     ctx.fillRect(10, 20, 12, 16);
-    ctx.fillStyle = '#ef4444';
-    ctx.beginPath(); ctx.arc(45, 25, 4, 0, Math.PI*2); ctx.fill();
+    // Red dot
+    if (damage < 3) {
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath(); ctx.arc(45, 25, 4, 0, Math.PI*2); ctx.fill();
+    }
+    // Cracks — appear progressively
+    ctx.strokeStyle = 'rgba(30,15,5,0.8)';
+    if (damage >= 1) {
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(20, 20); ctx.lineTo(28, 30); ctx.lineTo(22, 38); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(42, 18); ctx.lineTo(50, 26); ctx.stroke();
+    }
+    if (damage >= 2) {
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(10, 28); ctx.lineTo(26, 34); ctx.lineTo(18, 44); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(36, 22); ctx.lineTo(58, 36); ctx.stroke();
+        // Big crack through surface
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(8, 16); ctx.lineTo(32, 28); ctx.lineTo(22, 48); ctx.stroke();
+        // Missing corner chunk
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.beginPath(); ctx.moveTo(50, 16); ctx.lineTo(60, 16); ctx.lineTo(60, 26); ctx.fill();
+    }
+    if (damage >= 3) {
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(4, 20); ctx.lineTo(60, 44); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(4, 40); ctx.lineTo(40, 16); ctx.stroke();
+        // Splinters / holes
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(14, 22, 8, 6);
+        ctx.fillRect(38, 32, 10, 8);
+        // Very dark overlay — almost destroyed
+        ctx.fillStyle = 'rgba(20,8,0,0.45)';
+        ctx.fillRect(4, 16, 56, 32);
+    }
+};
+
+export const createDeskTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(64, 64);
+    drawDesk(ctx, 0);
     return createTexture(canvas);
+};
+
+export const createDeskDamagedTexture = (level: 1|2|3): THREE.Texture => {
+    const { canvas, ctx } = validContext(64, 64);
+    drawDesk(ctx, level);
+    return createTexture(canvas);
+};
+
+const drawChair = (ctx: CanvasRenderingContext2D, damage: 0|1|2|3 = 0) => {
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(16, 26, 8, 3, 0, 0, Math.PI*2); ctx.fill();
+    // Seat — darkens with damage
+    const seatColors = ['#a1887f', '#8d7068', '#7a5a50', '#5c3f36'];
+    ctx.fillStyle = seatColors[damage];
+    ctx.fillRect(8, 8, 16, 16);
+    // Seat edge
+    ctx.fillStyle = '#795548';
+    ctx.fillRect(8, 22, 16, 2);
+    // Backrest — disappears at level 3
+    if (damage < 3) {
+        ctx.fillStyle = damage >= 2 ? '#6d4c41' : '#5d4037';
+        ctx.fillRect(8, 4, 16, 4);
+    }
+    // Legs — progressively broken
+    ctx.fillStyle = '#5d4037';
+    ctx.fillRect(8, 24, 3, 6);   // left leg
+    if (damage < 2) ctx.fillRect(21, 24, 3, 6); // right leg (missing at lvl 2+)
+    // Cracks
+    ctx.strokeStyle = 'rgba(30,10,0,0.85)';
+    if (damage >= 1) {
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(10, 8); ctx.lineTo(14, 20); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(20, 6); ctx.lineTo(18, 16); ctx.stroke();
+    }
+    if (damage >= 2) {
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(8, 10); ctx.lineTo(24, 22); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(8, 18); ctx.lineTo(20, 10); ctx.stroke();
+        // Jagged broken right edge
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.beginPath(); ctx.moveTo(22, 12); ctx.lineTo(26, 10); ctx.lineTo(26, 20); ctx.lineTo(22, 22); ctx.fill();
+    }
+    if (damage >= 3) {
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(8, 8); ctx.lineTo(24, 24); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(8, 24); ctx.lineTo(24, 8); ctx.stroke();
+        ctx.fillStyle = 'rgba(20,8,0,0.5)';
+        ctx.fillRect(8, 8, 16, 16);
+    }
 };
 
 export const createChairTexture = (): THREE.Texture => {
     const { canvas, ctx } = validContext(32, 32);
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.beginPath(); ctx.ellipse(16, 26, 8, 3, 0,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#a1887f';
-    ctx.fillRect(8, 8, 16, 16);
-    ctx.fillStyle = '#795548';
-    ctx.fillRect(8, 22, 16, 2);
-    ctx.fillStyle = '#5d4037';
-    ctx.fillRect(8, 4, 16, 4);
+    drawChair(ctx, 0);
+    return createTexture(canvas);
+};
+
+export const createChairDamagedTexture = (level: 1|2|3): THREE.Texture => {
+    const { canvas, ctx } = validContext(32, 32);
+    drawChair(ctx, level);
     return createTexture(canvas);
 };
 
@@ -857,6 +948,278 @@ export const createGrenadeTexture = (): THREE.Texture => {
     ctx.fillRect(8, 22, 16, 2);
     ctx.fillStyle = '#52525b'; // Pin
     ctx.fillRect(14, 2, 4, 6);
+    return createTexture(canvas);
+};
+
+export const createShockwaveTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(256, 256);
+    const cx = 128, cy = 128;
+    // Outer glow ring
+    const grad = ctx.createRadialGradient(cx, cy, 80, cx, cy, 128);
+    grad.addColorStop(0,   'rgba(255, 200, 50, 0.0)');
+    grad.addColorStop(0.5, 'rgba(255, 200, 50, 0.9)');
+    grad.addColorStop(0.75,'rgba(255, 100, 0,  0.6)');
+    grad.addColorStop(1,   'rgba(255, 50,  0,  0.0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 128, 0, Math.PI * 2);
+    ctx.fill();
+    // Inner cutout to make it a ring
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 76, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    return createTexture(canvas);
+};
+
+// --- SNOWBALL ---
+const drawSnowball = (ctx: CanvasRenderingContext2D, damage: 0|1|2|3 = 0) => {
+    const cx = 32, cy = 36;
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath(); ctx.ellipse(cx, 58, 18, 5, 0, 0, Math.PI*2); ctx.fill();
+    // Base sphere
+    const baseColors = ['#f0f4ff', '#d8e4f0', '#c0cce0', '#a0b0c4'];
+    ctx.fillStyle = baseColors[damage];
+    ctx.beginPath(); ctx.arc(cx, cy, 22, 0, Math.PI*2); ctx.fill();
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath(); ctx.arc(cx - 6, cy - 8, 9, 0, Math.PI*2); ctx.fill();
+    // Snow texture dots
+    ctx.fillStyle = 'rgba(180,200,230,0.5)';
+    for(let i=0; i<8; i++) {
+        ctx.beginPath(); ctx.arc(cx-16+i*5, cy+4+Math.sin(i)*6, 2, 0, Math.PI*2); ctx.fill();
+    }
+    // Cracks
+    ctx.strokeStyle = 'rgba(80,110,150,0.9)';
+    if (damage >= 1) {
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(22, 28); ctx.lineTo(30, 42); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(40, 24); ctx.lineTo(46, 36); ctx.stroke();
+    }
+    if (damage >= 2) {
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(18, 36); ctx.lineTo(32, 28); ctx.lineTo(44, 40); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(28, 20); ctx.lineTo(22, 34); ctx.stroke();
+        // Chunk missing
+        ctx.fillStyle = 'rgba(100,130,170,0.6)';
+        ctx.beginPath(); ctx.arc(44, 28, 7, 0, Math.PI*2); ctx.fill();
+    }
+    if (damage >= 3) {
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(14, 24); ctx.lineTo(52, 50); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(14, 44); ctx.lineTo(48, 22); ctx.stroke();
+        ctx.fillStyle = 'rgba(80,110,150,0.5)';
+        ctx.fillRect(20, 28, 8, 8);
+        ctx.fillRect(36, 38, 8, 6);
+    }
+};
+
+export const createSnowballTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(64, 64);
+    drawSnowball(ctx, 0);
+    return createTexture(canvas);
+};
+
+export const createSnowballDamagedTexture = (level: 1|2|3): THREE.Texture => {
+    const { canvas, ctx } = validContext(64, 64);
+    drawSnowball(ctx, level);
+    return createTexture(canvas);
+};
+
+// --- DIRT MOUND ---
+const drawDirtMound = (ctx: CanvasRenderingContext2D, damage: 0|1|2|3 = 0) => {
+    const cx = 32, cy = 42;
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(cx, 58, 22, 5, 0, 0, Math.PI*2); ctx.fill();
+    // Base mound
+    const moundColors = ['#78501a', '#6a4415', '#5a3810', '#402808'];
+    ctx.fillStyle = moundColors[damage];
+    ctx.beginPath();
+    ctx.moveTo(8, 56);
+    ctx.quadraticCurveTo(10, 28, cx, 16);
+    ctx.quadraticCurveTo(54, 28, 56, 56);
+    ctx.closePath();
+    ctx.fill();
+    // Soil texture lines
+    ctx.strokeStyle = 'rgba(40,20,5,0.5)';
+    ctx.lineWidth = 1;
+    for(let i=0; i<5; i++) {
+        ctx.beginPath();
+        ctx.moveTo(12 + i*9, 50); ctx.quadraticCurveTo(cx, 40 - i*4, 52 - i*9, 50);
+        ctx.stroke();
+    }
+    // Grass sprouts on top (disappear with damage)
+    if (damage < 2) {
+        ctx.strokeStyle = '#4d7c0f';
+        ctx.lineWidth = 2;
+        for(let i=0; i<5; i++) {
+            const gx = cx - 10 + i*5;
+            ctx.beginPath(); ctx.moveTo(gx, 18 + i%2*4); ctx.lineTo(gx-3, 10 + i%3*3); ctx.stroke();
+        }
+    }
+    // Cracks
+    ctx.strokeStyle = 'rgba(20,8,0,0.8)';
+    if (damage >= 1) {
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(22, 30); ctx.lineTo(28, 44); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(38, 26); ctx.lineTo(44, 38); ctx.stroke();
+    }
+    if (damage >= 2) {
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(16, 38); ctx.lineTo(30, 28); ctx.lineTo(46, 40); ctx.stroke();
+        // Collapsed side
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath(); ctx.moveTo(44, 20); ctx.lineTo(58, 34); ctx.lineTo(56, 56); ctx.lineTo(46, 52); ctx.fill();
+    }
+    if (damage >= 3) {
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(10, 24); ctx.lineTo(56, 50); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(10, 46); ctx.lineTo(50, 20); ctx.stroke();
+        ctx.fillStyle = 'rgba(20,8,0,0.5)'; ctx.fillRect(18, 26, 12, 10); ctx.fillRect(36, 34, 10, 8);
+    }
+};
+
+export const createDirtMoundTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(64, 64);
+    drawDirtMound(ctx, 0);
+    return createTexture(canvas);
+};
+
+export const createDirtMoundDamagedTexture = (level: 1|2|3): THREE.Texture => {
+    const { canvas, ctx } = validContext(64, 64);
+    drawDirtMound(ctx, level);
+    return createTexture(canvas);
+};
+
+// --- LAVA CRATER ---
+const drawLavaCrater = (ctx: CanvasRenderingContext2D, damage: 0|1|2|3 = 0) => {
+    const cx = 32, cy = 38;
+    // Outer dark rock rim
+    const rimColors = ['#2a1a0a', '#1e1206', '#160e04', '#0c0804'];
+    ctx.fillStyle = rimColors[damage];
+    ctx.beginPath(); ctx.ellipse(cx, cy, 28, 20, 0, 0, Math.PI*2); ctx.fill();
+    // Lava glow inside (brighter with more damage)
+    const innerRadius = damage >= 2 ? 20 : damage >= 1 ? 17 : 14;
+    const glowGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, innerRadius);
+    if (damage >= 2) {
+        glowGrad.addColorStop(0, 'rgba(255, 255, 100, 1)');
+        glowGrad.addColorStop(0.3, 'rgba(255, 160, 0, 1)');
+        glowGrad.addColorStop(0.7, 'rgba(220, 60, 0, 0.9)');
+        glowGrad.addColorStop(1, 'rgba(100, 20, 0, 0.4)');
+    } else if (damage >= 1) {
+        glowGrad.addColorStop(0, 'rgba(255, 200, 50, 0.9)');
+        glowGrad.addColorStop(0.4, 'rgba(220, 80, 0, 0.8)');
+        glowGrad.addColorStop(1, 'rgba(80, 15, 0, 0.3)');
+    } else {
+        glowGrad.addColorStop(0, 'rgba(255, 140, 0, 0.8)');
+        glowGrad.addColorStop(0.5, 'rgba(180, 50, 0, 0.7)');
+        glowGrad.addColorStop(1, 'rgba(60, 10, 0, 0.2)');
+    }
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath(); ctx.ellipse(cx, cy, innerRadius, innerRadius * 0.7, 0, 0, Math.PI*2); ctx.fill();
+    // Rock texture on rim
+    ctx.strokeStyle = 'rgba(80,40,10,0.6)';
+    ctx.lineWidth = 1;
+    for(let i=0; i<6; i++) {
+        const a = (i/6) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a)*22, cy + Math.sin(a)*16);
+        ctx.lineTo(cx + Math.cos(a)*28, cy + Math.sin(a)*20);
+        ctx.stroke();
+    }
+    // Cracks radiating out with damage
+    ctx.strokeStyle = 'rgba(255,100,0,0.7)';
+    if (damage >= 1) {
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(cx, cy-4); ctx.lineTo(cx-8, cy-22); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx+6, cy-2); ctx.lineTo(cx+20, cy-16); ctx.stroke();
+    }
+    if (damage >= 2) {
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(cx-4, cy+4); ctx.lineTo(cx-22, cy+14); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx+4, cy+4); ctx.lineTo(cx+18, cy+16); ctx.stroke();
+        // Extra glow pulse chunks
+        ctx.fillStyle = 'rgba(255,120,0,0.5)';
+        ctx.beginPath(); ctx.arc(cx-14, cy-14, 4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx+12, cy+12, 3, 0, Math.PI*2); ctx.fill();
+    }
+    if (damage >= 3) {
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = 'rgba(255,200,50,0.9)';
+        ctx.beginPath(); ctx.moveTo(cx-28, cy-10); ctx.lineTo(cx+26, cy+14); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx-20, cy+18); ctx.lineTo(cx+22, cy-16); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,80,0,0.6)'; ctx.fillRect(cx-16, cy-10, 6, 6); ctx.fillRect(cx+8, cy+4, 5, 5);
+    }
+};
+
+export const createLavaCraterTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(64, 64);
+    drawLavaCrater(ctx, 0);
+    return createTexture(canvas);
+};
+
+export const createLavaCraterDamagedTexture = (level: 1|2|3): THREE.Texture => {
+    const { canvas, ctx } = validContext(64, 64);
+    drawLavaCrater(ctx, level);
+    return createTexture(canvas);
+};
+
+// --- LAVA PROJECTILE ---
+export const createLavaProjectileTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(32, 32);
+    const cx = 16, cy = 16;
+    const grad = ctx.createRadialGradient(cx, cy, 1, cx, cy, 12);
+    grad.addColorStop(0,   'rgba(255, 255, 150, 1)');
+    grad.addColorStop(0.3, 'rgba(255, 160,   0, 1)');
+    grad.addColorStop(0.7, 'rgba(200,  40,   0, 0.8)');
+    grad.addColorStop(1,   'rgba(100,   0,   0, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(cx, cy, 12, 0, Math.PI*2); ctx.fill();
+    return createTexture(canvas);
+};
+
+// --- TAUPE UNDERGROUND INDICATOR ---
+export const createTaupeShadowTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(128, 128);
+    const cx = 64, cy = 64;
+    // Large pulsing danger circle
+    const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, 60);
+    grad.addColorStop(0,   'rgba(0, 0, 0, 0.95)');
+    grad.addColorStop(0.5, 'rgba(20, 10, 40, 0.85)');
+    grad.addColorStop(0.8, 'rgba(80, 20, 80, 0.5)');
+    grad.addColorStop(1,   'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(cx, cy, 60, 0, Math.PI*2); ctx.fill();
+    // Warning ring
+    ctx.strokeStyle = 'rgba(200, 0, 200, 0.9)';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([10, 6]);
+    ctx.beginPath(); ctx.arc(cx, cy, 50, 0, Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+    // Claw marks
+    ctx.strokeStyle = 'rgba(255, 80, 255, 0.8)';
+    ctx.lineWidth = 3;
+    const clawAngles = [0, Math.PI*0.4, Math.PI*0.8, Math.PI*1.2, Math.PI*1.6];
+    clawAngles.forEach(a => {
+        const cos = Math.cos(a), sin = Math.sin(a);
+        ctx.beginPath();
+        ctx.moveTo(cx + cos*20, cy + sin*20);
+        ctx.lineTo(cx + cos*46, cy + sin*46);
+        ctx.stroke();
+        // Barb
+        ctx.beginPath();
+        ctx.moveTo(cx + cos*46, cy + sin*46);
+        ctx.lineTo(cx + Math.cos(a+0.4)*38, cy + Math.sin(a+0.4)*38);
+        ctx.stroke();
+    });
+    // Center eye
+    ctx.fillStyle = 'rgba(220, 50, 220, 0.9)';
+    ctx.beginPath(); ctx.ellipse(cx, cy, 10, 7, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.95)';
+    ctx.beginPath(); ctx.ellipse(cx, cy, 5, 4, 0, 0, Math.PI*2); ctx.fill();
     return createTexture(canvas);
 };
 
@@ -1255,5 +1618,698 @@ export const createYarnTexture = (): THREE.Texture => {
         ctx.quadraticCurveTo(Math.random()*32, Math.random()*32, Math.random()*32, Math.random()*32);
         ctx.stroke();
     }
+    return createTexture(canvas);
+};
+
+// --- NINJA PAIN (RABBIT) BOSS ---
+export const createRabbitTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(256, 256);
+    const cx = 128, cy = 140;
+
+    // Ears (long, grey with pink inner)
+    ctx.fillStyle = '#6b6b6b';
+    ctx.beginPath(); ctx.ellipse(cx - 28, cy - 80, 16, 55, -0.1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + 28, cy - 80, 16, 55,  0.1, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f8a5c2';
+    ctx.beginPath(); ctx.ellipse(cx - 28, cy - 78, 7, 42, -0.1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + 28, cy - 78, 7, 42,  0.1, 0, Math.PI * 2); ctx.fill();
+
+    // Body (grey, round)
+    ctx.fillStyle = '#7a7a7a';
+    ctx.beginPath(); ctx.ellipse(cx, cy + 30, 75, 65, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Belly (lighter)
+    ctx.fillStyle = '#a8a8a8';
+    ctx.beginPath(); ctx.ellipse(cx, cy + 45, 45, 40, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Head
+    ctx.fillStyle = '#7a7a7a';
+    ctx.beginPath(); ctx.ellipse(cx, cy - 10, 55, 50, 0, 0, Math.PI * 2); ctx.fill();
+
+    // White forehead spot
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.ellipse(cx, cy - 30, 16, 12, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Red glowing eyes
+    ctx.fillStyle = '#ff1a1a';
+    ctx.beginPath(); ctx.arc(cx - 18, cy - 10, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + 18, cy - 10, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffcccc';
+    ctx.beginPath(); ctx.arc(cx - 16, cy - 12, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + 20, cy - 12, 2, 0, Math.PI * 2); ctx.fill();
+
+    // Pink nose
+    ctx.fillStyle = '#ec407a';
+    ctx.beginPath(); ctx.ellipse(cx, cy + 8, 5, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Buck teeth
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(cx - 6, cy + 12, 5, 10);
+    ctx.fillRect(cx + 1, cy + 12, 5, 10);
+
+    // Feet
+    ctx.fillStyle = '#5a5a5a';
+    ctx.beginPath(); ctx.ellipse(cx - 32, cy + 88, 22, 10, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + 32, cy + 88, 22, 10, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Fur texture
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 80; i++) {
+        const x = cx - 65 + Math.random() * 130;
+        const y = cy - 20 + Math.random() * 100;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + (Math.random() - 0.5) * 8, y + 6);
+        ctx.stroke();
+    }
+
+    return createTexture(canvas);
+};
+
+export const createCarrotTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(64, 128);
+    // Leaves
+    ctx.fillStyle = '#2d6a2d';
+    for (let i = -2; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.ellipse(32 + i * 6, 18, 4, 16, i * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.fillStyle = '#4caf50';
+    for (let i = -1; i <= 1; i++) {
+        ctx.beginPath();
+        ctx.ellipse(32 + i * 5, 16, 3, 12, i * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    // Carrot body (orange triangle)
+    ctx.fillStyle = '#ff8c00';
+    ctx.beginPath();
+    ctx.moveTo(18, 34);
+    ctx.lineTo(46, 34);
+    ctx.lineTo(32, 118);
+    ctx.closePath();
+    ctx.fill();
+    // Highlight
+    ctx.fillStyle = '#ffab40';
+    ctx.beginPath();
+    ctx.moveTo(22, 38);
+    ctx.lineTo(28, 38);
+    ctx.lineTo(30, 100);
+    ctx.closePath();
+    ctx.fill();
+    // Ridges
+    ctx.strokeStyle = '#d96d00';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 5; i++) {
+        const y = 45 + i * 15;
+        ctx.beginPath();
+        ctx.moveTo(20 + i, y);
+        ctx.lineTo(44 - i, y);
+        ctx.stroke();
+    }
+    return createTexture(canvas);
+};
+
+export const createLightningTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(128, 256);
+    // Glow
+    const grad = ctx.createRadialGradient(64, 128, 5, 64, 128, 70);
+    grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+    grad.addColorStop(0.3, 'rgba(200,220,255,0.5)');
+    grad.addColorStop(1, 'rgba(100,100,255,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 128, 256);
+
+    // Main bolt (zigzag)
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 10;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(64, 0);
+    ctx.lineTo(54, 50);
+    ctx.lineTo(74, 90);
+    ctx.lineTo(52, 140);
+    ctx.lineTo(76, 180);
+    ctx.lineTo(60, 230);
+    ctx.lineTo(64, 256);
+    ctx.stroke();
+
+    // Inner bolt (yellow)
+    ctx.strokeStyle = '#fff59d';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(64, 0);
+    ctx.lineTo(54, 50);
+    ctx.lineTo(74, 90);
+    ctx.lineTo(52, 140);
+    ctx.lineTo(76, 180);
+    ctx.lineTo(60, 230);
+    ctx.lineTo(64, 256);
+    ctx.stroke();
+
+    return createTexture(canvas);
+};
+
+export const createRabbitLandingShadowTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(128, 128);
+    const cx = 64, cy = 64;
+    // Dark circle
+    const grad = ctx.createRadialGradient(cx, cy, 5, cx, cy, 55);
+    grad.addColorStop(0,   'rgba(0, 0, 0, 0.9)');
+    grad.addColorStop(0.6, 'rgba(40, 0, 0, 0.7)');
+    grad.addColorStop(1,   'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(cx, cy, 55, 0, Math.PI * 2); ctx.fill();
+    // Red warning ring
+    ctx.strokeStyle = 'rgba(255, 40, 40, 0.95)';
+    ctx.lineWidth = 5;
+    ctx.setLineDash([10, 6]);
+    ctx.beginPath(); ctx.arc(cx, cy, 48, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+    // Crosshair
+    ctx.strokeStyle = 'rgba(255, 80, 80, 0.85)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cx - 40, cy); ctx.lineTo(cx - 10, cy);
+    ctx.moveTo(cx + 10, cy); ctx.lineTo(cx + 40, cy);
+    ctx.moveTo(cx, cy - 40); ctx.lineTo(cx, cy - 10);
+    ctx.moveTo(cx, cy + 10); ctx.lineTo(cx, cy + 40);
+    ctx.stroke();
+    return createTexture(canvas);
+};
+
+// --- STAGE 6 PROPS (WINDMILL + GNOME) ---
+const drawWindmill = (ctx: CanvasRenderingContext2D, damage: 0|1|2|3 = 0) => {
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(64, 122, 28, 5, 0, 0, Math.PI * 2); ctx.fill();
+
+    if (damage >= 3) {
+        // Destroyed: rubble pile
+        ctx.fillStyle = '#6b5b4b';
+        ctx.beginPath(); ctx.ellipse(64, 115, 30, 8, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#8a7a6a';
+        for (let i = 0; i < 8; i++) {
+            ctx.beginPath();
+            ctx.arc(48 + i * 4, 112 + (i % 2) * 4, 3 + (i % 3), 0, Math.PI * 2);
+            ctx.fill();
+        }
+        return;
+    }
+
+    // Stone tower body (trapezoid)
+    ctx.fillStyle = '#c9b896';
+    ctx.beginPath();
+    ctx.moveTo(48, 120);
+    ctx.lineTo(80, 120);
+    ctx.lineTo(74, 55);
+    ctx.lineTo(54, 55);
+    ctx.closePath();
+    ctx.fill();
+    // Stone details
+    ctx.strokeStyle = '#8a7a5a';
+    ctx.lineWidth = 1;
+    for (let y = 60; y < 120; y += 10) {
+        ctx.beginPath(); ctx.moveTo(50, y); ctx.lineTo(78, y); ctx.stroke();
+    }
+    // Door
+    ctx.fillStyle = '#5a3a1a';
+    ctx.fillRect(60, 98, 8, 22);
+    // Window
+    ctx.fillStyle = '#3a2a1a';
+    ctx.fillRect(61, 78, 6, 6);
+
+    // Red conical roof
+    ctx.fillStyle = damage >= 2 ? '#8a2020' : '#c62828';
+    ctx.beginPath();
+    ctx.moveTo(50, 58);
+    ctx.lineTo(78, 58);
+    ctx.lineTo(64, 32);
+    ctx.closePath();
+    ctx.fill();
+
+    // Sails hub
+    ctx.fillStyle = '#5a3a1a';
+    ctx.beginPath(); ctx.arc(64, 48, 4, 0, Math.PI * 2); ctx.fill();
+
+    // Sails (4 blades) - damage removes blades
+    ctx.fillStyle = '#fafafa';
+    ctx.strokeStyle = '#5a3a1a';
+    ctx.lineWidth = 1;
+    const bladeCount = damage === 0 ? 4 : damage === 1 ? 3 : 2;
+    for (let i = 0; i < bladeCount; i++) {
+        const a = (i * Math.PI / 2) + 0.3;
+        const cos = Math.cos(a), sin = Math.sin(a);
+        ctx.save();
+        ctx.translate(64, 48);
+        ctx.rotate(a);
+        ctx.fillRect(4, -3, 26, 6);
+        ctx.strokeRect(4, -3, 26, 6);
+        ctx.restore();
+    }
+
+    if (damage >= 1) {
+        // Cracks
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(56, 70); ctx.lineTo(60, 85); ctx.lineTo(58, 100);
+        ctx.stroke();
+    }
+};
+
+export const createWindmillTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(128, 128);
+    drawWindmill(ctx, 0);
+    return createTexture(canvas);
+};
+export const createWindmillDamagedTexture = (level: 1|2|3): THREE.Texture => {
+    const { canvas, ctx } = validContext(128, 128);
+    drawWindmill(ctx, level);
+    return createTexture(canvas);
+};
+
+const drawGnome = (ctx: CanvasRenderingContext2D, damage: 0|1|2|3 = 0) => {
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(64, 118, 22, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    if (damage >= 3) {
+        // Destroyed: broken pieces
+        ctx.fillStyle = '#c62828';
+        ctx.beginPath(); ctx.arc(50, 112, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#1e3a8a';
+        ctx.beginPath(); ctx.arc(62, 116, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e8e8e8';
+        ctx.beginPath(); ctx.arc(76, 113, 4, 0, Math.PI * 2); ctx.fill();
+        return;
+    }
+
+    // Boots
+    ctx.fillStyle = '#3a2a1a';
+    ctx.beginPath(); ctx.ellipse(56, 114, 8, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(72, 114, 8, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    // Blue coat body
+    ctx.fillStyle = damage >= 2 ? '#152a5a' : '#1e3a8a';
+    ctx.beginPath();
+    ctx.ellipse(64, 95, 22, 22, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Belt
+    ctx.fillStyle = '#3a2a1a';
+    ctx.fillRect(44, 92, 40, 4);
+    // Buckle
+    ctx.fillStyle = '#ffd700';
+    ctx.fillRect(61, 91, 6, 6);
+
+    // Face (skin)
+    ctx.fillStyle = '#f4c4a0';
+    ctx.beginPath(); ctx.arc(64, 70, 15, 0, Math.PI * 2); ctx.fill();
+
+    // White beard
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(50, 72);
+    ctx.quadraticCurveTo(64, 95, 78, 72);
+    ctx.quadraticCurveTo(72, 82, 64, 85);
+    ctx.quadraticCurveTo(56, 82, 50, 72);
+    ctx.fill();
+    // Beard fluff
+    ctx.beginPath(); ctx.arc(56, 80, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(64, 84, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(72, 80, 4, 0, Math.PI * 2); ctx.fill();
+
+    // Eyes (small black dots)
+    ctx.fillStyle = 'black';
+    ctx.beginPath(); ctx.arc(59, 66, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(69, 66, 2, 0, Math.PI * 2); ctx.fill();
+
+    // Nose
+    ctx.fillStyle = '#e89880';
+    ctx.beginPath(); ctx.arc(64, 71, 3, 0, Math.PI * 2); ctx.fill();
+
+    // Red pointy hat
+    ctx.fillStyle = damage >= 2 ? '#8a2020' : '#c62828';
+    ctx.beginPath();
+    ctx.moveTo(48, 60);
+    ctx.lineTo(80, 60);
+    ctx.lineTo(64, 26);
+    ctx.closePath();
+    ctx.fill();
+    // Hat tip
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(64, 28, 3, 0, Math.PI * 2); ctx.fill();
+
+    if (damage >= 1) {
+        // Crack on hat/body
+        ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(60, 40); ctx.lineTo(64, 55); ctx.lineTo(62, 75);
+        ctx.stroke();
+    }
+};
+
+export const createGnomeTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(128, 128);
+    drawGnome(ctx, 0);
+    return createTexture(canvas);
+};
+export const createGnomeDamagedTexture = (level: 1|2|3): THREE.Texture => {
+    const { canvas, ctx } = validContext(128, 128);
+    drawGnome(ctx, level);
+    return createTexture(canvas);
+};
+
+export const createEnchantedGardenFloorTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(512, 512);
+    // Deep green base
+    ctx.fillStyle = '#2d5016';
+    ctx.fillRect(0, 0, 512, 512);
+
+    // Moss patches
+    for (let i = 0; i < 200; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const s = Math.random() * 25 + 8;
+        ctx.fillStyle = Math.random() > 0.5 ? '#3f6b1f' : '#1f3a0a';
+        ctx.beginPath();
+        ctx.ellipse(x, y, s, s * 0.7, Math.random(), 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Grass blades
+    ctx.strokeStyle = '#5a9a2a';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 400; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + (Math.random() - 0.5) * 4, y - 5 - Math.random() * 4);
+        ctx.stroke();
+    }
+
+    // Flowers (yellow, pink, white)
+    const flowerColors = ['#ffeb3b', '#ff80ab', '#ffffff', '#ce93d8'];
+    for (let i = 0; i < 60; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const col = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+        ctx.fillStyle = col;
+        for (let p = 0; p < 5; p++) {
+            const a = (p / 5) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.arc(x + Math.cos(a) * 3, y + Math.sin(a) * 3, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    return createTexture(canvas);
+};
+
+// --- SNAKE BOSS ---
+export const createSnakeTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(256, 256);
+    const cx = 128, cy = 128;
+
+    // Coiled body (layered ellipses to look like coils)
+    ctx.fillStyle = '#2d6b2d';
+    for (let i = 0; i < 4; i++) {
+        const yy = cy + 20 - i * 8;
+        ctx.beginPath();
+        ctx.ellipse(cx, yy, 75 - i * 5, 25, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    // Body pattern (diamonds)
+    ctx.fillStyle = '#1a4a1a';
+    for (let i = 0; i < 12; i++) {
+        const x = cx - 60 + Math.random() * 120;
+        const y = cy - 10 + Math.random() * 60;
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(Math.random());
+        ctx.fillRect(-4, -4, 8, 8);
+        ctx.restore();
+    }
+    // Belly lighter stripe
+    ctx.fillStyle = '#7acc7a';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 30, 35, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Head (raised, triangular)
+    ctx.fillStyle = '#2d6b2d';
+    ctx.beginPath();
+    ctx.moveTo(cx - 30, cy - 30);
+    ctx.lineTo(cx + 30, cy - 30);
+    ctx.lineTo(cx + 18, cy - 65);
+    ctx.lineTo(cx - 18, cy - 65);
+    ctx.closePath();
+    ctx.fill();
+    // Head top
+    ctx.fillStyle = '#1a5a1a';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - 60, 22, 15, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyes (yellow, slit pupils)
+    ctx.fillStyle = '#ffdd00';
+    ctx.beginPath(); ctx.arc(cx - 12, cy - 58, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + 12, cy - 58, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(cx - 13, cy - 63, 2, 10);
+    ctx.fillRect(cx + 11, cy - 63, 2, 10);
+
+    // Tongue (forked, red)
+    ctx.strokeStyle = '#cc0000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 70);
+    ctx.lineTo(cx, cy - 85);
+    ctx.lineTo(cx - 5, cy - 92);
+    ctx.moveTo(cx, cy - 85);
+    ctx.lineTo(cx + 5, cy - 92);
+    ctx.stroke();
+
+    // Scales texture
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 60; i++) {
+        const x = cx - 70 + Math.random() * 140;
+        const y = cy - 20 + Math.random() * 60;
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+
+    return createTexture(canvas);
+};
+
+export const createSnakeConstrictionTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(128, 128);
+    const cx = 64, cy = 64;
+    // Green coils wrapping effect
+    ctx.strokeStyle = '#2d6b2d';
+    ctx.lineWidth = 12;
+    for (let i = 0; i < 3; i++) {
+        const r = 35 + i * 8;
+        ctx.globalAlpha = 0.8 - i * 0.15;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, i * 0.7, i * 0.7 + Math.PI * 1.4);
+        ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // Scale pattern
+    ctx.fillStyle = '#1a5a1a';
+    for (let i = 0; i < 20; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = 30 + Math.random() * 20;
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    return createTexture(canvas);
+};
+
+// --- STAGE 7 PROPS (VINE + TOTEM) ---
+const drawVine = (ctx: CanvasRenderingContext2D, damage: 0|1|2|3 = 0) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(64, 122, 20, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    if (damage >= 3) {
+        ctx.fillStyle = '#2d6b2d';
+        for (let i = 0; i < 6; i++) {
+            ctx.beginPath();
+            ctx.ellipse(45 + i * 6, 116 + (i % 2) * 3, 4, 2, Math.random(), 0, Math.PI * 2);
+            ctx.fill();
+        }
+        return;
+    }
+
+    // Main vine trunk
+    ctx.strokeStyle = '#4a7a2d';
+    ctx.lineWidth = damage >= 2 ? 4 : 6;
+    ctx.beginPath();
+    ctx.moveTo(64, 120);
+    ctx.bezierCurveTo(58, 90, 70, 60, 60, 30);
+    ctx.stroke();
+
+    const branchCount = damage === 0 ? 4 : damage === 1 ? 3 : 2;
+    ctx.strokeStyle = '#3a6a20';
+    ctx.lineWidth = 3;
+    for (let i = 0; i < branchCount; i++) {
+        const y = 40 + i * 20;
+        const side = i % 2 === 0 ? -1 : 1;
+        ctx.beginPath();
+        ctx.moveTo(64 + side * 2, y);
+        ctx.quadraticCurveTo(64 + side * 20, y - 10, 64 + side * 25, y - 5);
+        ctx.stroke();
+    }
+
+    ctx.fillStyle = '#2d8a2d';
+    const leafCount = damage === 0 ? 8 : damage === 1 ? 5 : 3;
+    for (let i = 0; i < leafCount; i++) {
+        const x = 40 + Math.random() * 48;
+        const y = 30 + Math.random() * 70;
+        ctx.beginPath();
+        ctx.ellipse(x, y, 6, 3, Math.random(), 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    if (damage === 0) {
+        ctx.fillStyle = '#ff6b9d';
+        for (let i = 0; i < 3; i++) {
+            const x = 50 + Math.random() * 28;
+            const y = 35 + Math.random() * 50;
+            ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+
+    if (damage >= 1) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(60, 60); ctx.lineTo(64, 80); ctx.lineTo(62, 100);
+        ctx.stroke();
+    }
+};
+
+export const createVineTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(128, 128);
+    drawVine(ctx, 0);
+    return createTexture(canvas);
+};
+export const createVineDamagedTexture = (level: 1|2|3): THREE.Texture => {
+    const { canvas, ctx } = validContext(128, 128);
+    drawVine(ctx, level);
+    return createTexture(canvas);
+};
+
+const drawTotem = (ctx: CanvasRenderingContext2D, damage: 0|1|2|3 = 0) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.ellipse(64, 122, 16, 4, 0, 0, Math.PI * 2); ctx.fill();
+
+    if (damage >= 3) {
+        ctx.fillStyle = '#6b4423';
+        ctx.fillRect(50, 110, 10, 8);
+        ctx.fillRect(68, 112, 8, 6);
+        ctx.fillStyle = '#8a5a2a';
+        ctx.fillRect(56, 115, 12, 5);
+        return;
+    }
+
+    ctx.fillStyle = damage >= 2 ? '#5a3a1a' : '#6b4423';
+    ctx.fillRect(54, 30, 20, 90);
+
+    const faces = damage === 0 ? 3 : damage === 1 ? 2 : 1;
+    for (let i = 0; i < faces; i++) {
+        const y = 38 + i * 28;
+        ctx.fillStyle = '#8a6a3a';
+        ctx.fillRect(52, y, 24, 24);
+        ctx.fillStyle = '#ff4444';
+        ctx.beginPath(); ctx.arc(59, y + 8, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(69, y + 8, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#2a1a0a';
+        ctx.fillRect(57, y + 15, 14, 5);
+        ctx.fillStyle = '#ffffff';
+        for (let t = 0; t < 3; t++) {
+            ctx.fillRect(59 + t * 4, y + 15, 2, 3);
+        }
+    }
+
+    ctx.fillStyle = '#2d8a2d';
+    ctx.beginPath();
+    ctx.ellipse(64, 28, 12, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (damage >= 1) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(58, 50); ctx.lineTo(62, 70); ctx.lineTo(60, 90);
+        ctx.stroke();
+    }
+};
+
+export const createTotemTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(128, 128);
+    drawTotem(ctx, 0);
+    return createTexture(canvas);
+};
+export const createTotemDamagedTexture = (level: 1|2|3): THREE.Texture => {
+    const { canvas, ctx } = validContext(128, 128);
+    drawTotem(ctx, level);
+    return createTexture(canvas);
+};
+
+export const createJungleFloorTexture = (): THREE.Texture => {
+    const { canvas, ctx } = validContext(512, 512);
+    ctx.fillStyle = '#1a3a0a';
+    ctx.fillRect(0, 0, 512, 512);
+
+    for (let i = 0; i < 150; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const s = Math.random() * 20 + 8;
+        ctx.fillStyle = Math.random() > 0.5 ? '#2a4a12' : '#122a06';
+        ctx.beginPath();
+        ctx.ellipse(x, y, s, s * 0.7, Math.random(), 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    const leafColors = ['#3a6b1a', '#2d5a14', '#4a7a2d', '#1a3a08'];
+    for (let i = 0; i < 200; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        ctx.fillStyle = leafColors[Math.floor(Math.random() * leafColors.length)];
+        ctx.beginPath();
+        ctx.ellipse(x, y, 4, 2, Math.random() * Math.PI, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.strokeStyle = '#3a2a10';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 30; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.quadraticCurveTo(x + (Math.random() - 0.5) * 40, y + Math.random() * 20, x + (Math.random() - 0.5) * 60, y + Math.random() * 30);
+        ctx.stroke();
+    }
+
+    for (let i = 0; i < 15; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        ctx.fillStyle = '#8a3a1a';
+        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#cc6a3a';
+        ctx.beginPath(); ctx.arc(x, y - 2, 4, Math.PI, 0); ctx.fill();
+    }
+
     return createTexture(canvas);
 };
