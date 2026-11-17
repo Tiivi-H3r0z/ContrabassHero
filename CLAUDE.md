@@ -1,87 +1,102 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repository.
+
+## The game
+
+**Contrabass Hero** is a frantic arena hack'n'slash in the browser. A band of young musicians fights hordes of conservatory teachers with their instruments, then a boss per stage. Tone: absurd family humour (fart clouds, chicken transformation, cat launcher, tactical nuke). Core loop: move, smash, knock enemies off a floating platform into the void, reach the kill threshold, beat the boss, next stage.
 
 ## Commands
 
 ```bash
-npm install          # Install dependencies
-npm run dev          # Start dev server at http://localhost:3000
-npm run build        # Production build
-npm run preview      # Preview production build
+npm install        # dependencies
+npm run dev        # dev server on http://localhost:5555 (vite.config.ts)
+npm run build      # production build -> dist/
+npm run preview    # serve the build
 ```
 
-**Environment setup:** Create a `.env.local` file with your Gemini API key:
-```
-GEMINI_API_KEY=your_key_here
-```
+No tests, no backend, no API key needed. `contentService.ts` returns hardcoded French insults/taunts (the old Gemini integration was removed; README is an AI Studio leftover).
 
-The game runs without the API key (falls back to hardcoded French insults/taunts).
+## Stack
+
+React 19 + Three.js 0.181 + Vite 6 + TypeScript. Tailwind comes from the CDN script in `index.html` (no Tailwind build). `index.html` also contains an AI Studio importmap that Vite ignores in practice; `/index.css` is referenced but does not exist.
 
 ## Architecture
 
-This is a React + Three.js browser game with no backend. There are no tests.
-
 ### State split: App vs GameCanvas
 
-`App.tsx` owns all **React state** (score, wave, health, stage, game phase). `GameCanvas.tsx` owns all **Three.js/game-loop state** via refs — it never re-renders reactively; instead it reads props through refs synced in `useEffect` hooks and calls setter callbacks (`setScore`, `setPlayerHealth`, etc.) to push data back up to React.
-
-This means:
-- React state changes do NOT cause GameCanvas to re-run the game loop
-- To force a full game reset (new WebGL context), `App` increments a `gameId` key on `<GameCanvas>` to unmount/remount it entirely
-- The game loop (`animate()`) is a `requestAnimationFrame` loop that lives entirely inside a single large `useEffect` in `GameCanvas`
+- `App.tsx` owns React state: score, stage, lives (5), kill count, game phase, overlays (boss intro, stage complete, special name), settings, pause, debug.
+- `GameCanvas.tsx` owns everything Three.js through refs. It never re-renders reactively: props are mirrored into refs via `useEffect`, and data goes back up through setter callbacks (`setScore`, `setKillCount`, `onLoseLife`, `onBossEnter`, `onStageAdvance`...).
+- React state changes do NOT restart the loop. To reset (new game or new stage), `App` increments `gameId`, used as `key` on `<GameCanvas>` to remount it with a fresh WebGL context.
+- The whole game loop (`animate()`, `requestAnimationFrame`) lives in one large `useEffect` in `GameCanvas` (~1900 lines). Frame-based timers assume 60 fps.
 
 ### Key files
 
 | File | Role |
 |---|---|
-| `App.tsx` | Top-level state, game lifecycle, debug mode toggle |
-| `components/GameCanvas.tsx` | Three.js scene, game loop, physics, combat, enemy AI, special powers |
-| `components/UIOverlay.tsx` | All HTML/CSS UI: menu, HUD, game over, options, key rebinding |
-| `services/assetFactory.ts` | Procedural texture generation using Canvas 2D API (no image files) |
-| `services/audioService.ts` | Web Audio API synthesizer for SFX; external MP3 URL for BGM |
-| `services/contentService.ts` | Gemini API calls for AI-generated French insults/boss taunts |
-| `constants.ts` | All tunable game numbers (speeds, damage, cooldowns, boss stats, colors) |
-| `types.ts` | TypeScript interfaces for all game entities (Hero, Enemy, Particle, Prop, Projectile) |
+| `App.tsx` | Top-level state, lifecycle, keyboard shortcuts (`Esc` pause, `T` test mode) |
+| `components/GameCanvas.tsx` | Scene, loop, input, physics, combat, enemy + boss AI, specials, props, camera |
+| `components/UIOverlay.tsx` | All HTML UI: menu + character select, options/key rebinding, HUD, pause, game over, victory, overlays |
+| `services/assetFactory.ts` | Procedural textures drawn with Canvas 2D (no image files), incl. damaged prop states |
+| `services/audioService.ts` | Web Audio synthesized SFX (`playSound(type)`); `BACKGROUND_MUSIC_URL` is empty |
+| `services/contentService.ts` | Hardcoded French insults, boss taunts, boss death lines |
+| `constants.ts` | All tunables: speeds, damage, cooldowns, boss stats per boss, colors, default key bindings |
+| `types.ts` | Entities: Hero, Enemy (+ boss phases), Projectile, CarrotBomb, Prop, Particle, FloatingText |
 
-### Rendering approach
+### Rendering (current)
 
-All visuals are **Three.js Sprites** (billboarded quads). Every texture is generated at runtime via Canvas 2D API in `assetFactory.ts` — there are no image assets. The camera is a fixed isometric-ish PerspectiveCamera offset `(24, 32, 24)` that follows the player via `lerp`.
+Everything is a `THREE.Sprite` (billboard) with a `NearestFilter` canvas texture: pixel-art 2.5D. Fixed perspective camera at offset `(24, 32, 24)` lerping toward the hero; screen shake via `traumaRef`; hit-stop via `hitStopRef`. Movement input is rotated for the isometric view (up = -x -z).
 
-### Game loop flow (per frame in `animate()`)
+### Frame flow in `animate()`
 
-1. Hit-stop check (freeze frame on hit)
-2. Special power active timer tick
-3. Input reading → hero velocity → position update → arena bounds
-4. Attack input → AoE damage to nearby enemies
-5. Enemy AI: move toward hero, damage on contact (1s invincibility), physics
-6. Enemy death check → kill counter → boss spawn trigger (at `CONSTANTS.BOSS.SPAWN_KILLS` kills)
-7. Wave/enemy spawn timer (1 enemy per 60 frames when no boss)
-8. Camera follow + screen shake (`traumaRef`)
-9. Render
+1. Hit-stop / pause check
+2. Special power timers
+3. Input -> hero velocity -> position, jump, gravity, fall into void (lose a life, respawn with 2s invincibility)
+4. Hero vs destructible props (3 hits to destroy)
+5. Attack -> radial hit (`ATTACK_RANGE`), 40 dmg, knockback, shake, hit-stop
+6. Enemy AI: chase, contact damage (1s invincibility), speech bubbles, boss phase machines
+7. Deaths -> kill counter -> boss spawn at `spawnThreshold` (15, or 1 in test mode)
+8. Spawn timer (1 teacher / 60 frames when no boss)
+9. Projectiles, particles, floating texts
+10. Camera follow + shake, render
 
-### Characters and special powers
+### Characters and specials (`E` / `Enter`)
 
-6 playable characters defined in `types.ts` as `CharacterType`. Each has a unique weapon texture and special ability activated with `E`/`Enter`:
-- **Armand** (contrabass): spin attack, bounces around arena
-- **Adrien** (drums): transforms into lion, AoE knockback
-- **Eliot** (guitar): fart cloud, damages nearby enemies
-- **Swan** (piano): launches a cat projectile
-- **Pierre** (harpsichord): tactical nuke, instant-kills all enemies
-- **Audrey** (vocals/note): transforms into chicken
+| Hero | Instrument | Special |
+|---|---|---|
+| Armand | contrabass | Bow spin: bounces around the arena |
+| Adrien | drums | Lion roar: AoE knockback |
+| Eliot | guitar | Gas attack: fart clouds that contaminate enemies |
+| Swan | piano | Cat launch: homing cat projectile |
+| Pierre | harpsichord | Tactical nuke: kills all regular enemies |
+| Audrey | vocals (note) | Chicken mode |
 
-### Stage progression
+### Stages and bosses
 
-3 stages (School → Mountain → Garden), each with a different boss, floor texture, background color, and environment props. Stage advances after killing the stage boss. Boss spawns replace all current enemies when the kill threshold is reached.
+| # | Stage | Boss | Mechanic |
+|---|---|---|---|
+| 1 | School | Le Directeur | Heavy chaser |
+| 2 | Mountain | L'Aigle | Fast |
+| 3 | Garden | Kawik (guinea pig) | Tank |
+| 4 | Desert | Tatoo (armadillo) | Shell phase: rolling, invulnerable |
+| 5 | Volcano | La Taupe (mole) | Burrow phase: invulnerable, lava projectiles |
+| 6 | Enchanted garden | Ninja Pain (rabbit) | Jumps, carrot bombs + lightning, phase 2 under 50% HP |
+| 7 | Jungle | Le Serpent | Constricts the hero: 3 jumps to escape |
 
-### AI integration
+Boss spawn clears regular enemies. Killing the boss shows "STAGE COMPLETE" and remounts the canvas on the next stage; after stage 7 -> victory.
 
-`contentService.ts` calls the Gemini API (`gemini-3-flash-preview` model) on game start to fetch French-language insult pools for teachers and boss taunts. The API key must be `GEMINI_API_KEY` in `.env.local`; Vite exposes it as `process.env.API_KEY` via the `define` config in `vite.config.ts`.
+### Known issues
 
-### Audio
+- Victory screen says "all 5 stages" (there are 7).
+- Character colors in `UIOverlay` use dynamic Tailwind classes (`border-${color}-500`), which only work because Tailwind runs from the CDN.
+- `migrated_prompt_history/` files have colons in their names and cannot be checked out on Windows (AI Studio history, not game code).
 
-All SFX are synthesized at runtime using Web Audio API oscillators and noise buffers — no audio files. Background music streams from an external MP3 URL hardcoded in `audioService.ts` (`BACKGROUND_MUSIC_URL`). Audio context is unlocked on first user click (menu start/restart buttons call `initAudio()`).
+## Redesign in progress
 
-### Known Windows limitation
+Target art direction (3D toon shading, ink outlines, neon, frantic hack'n'slash): https://claude.ai/artifact/Acw5UoV5fou8kAqcfCzFFV. Color semantics are strict: green = helps the player, cyan = UI, magenta = combo, yellow = reward, red-orange = danger/enemies only.
 
-Files in `migrated_prompt_history/` have colons in their names (`prompt_2025-11-20T18:20:53.196Z.json`) and cannot be checked out on Windows. This folder contains AI Studio prompt history and is not part of the game code.
+## Conventions
+
+- Code and identifiers in English, player-facing text in French.
+- All tunable numbers go in `constants.ts`.
+- No image or audio files so far: assets are generated in code.
