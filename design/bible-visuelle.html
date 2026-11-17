@@ -1,0 +1,814 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bible visuelle Contrabass Hero</title>
+<script src="./palettes.js"></script>
+<script>window.PAL = getPalette(new URLSearchParams(location.search).get("p")); applyPalette(window.PAL);</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik+Wet+Paint&family=Luckiest+Guy&family=Chakra+Petch:wght@500;700&family=Barlow:wght@400;600&display=swap">
+<style>
+/* Layout: one dark "void" scroll, full-bleed bands, content column 1180px; sections stack, grids collapse to 1 col on phone */
+:root{
+  color-scheme: dark;
+  --void:#0a0714; --void-2:#140c26; --void-3:#1f1438; --ink:#05030a;
+  --bone:#f3ecff; --fog:#a497c9;
+  --power:#7cff2e; --ui:#19e3ff; --combo:#ff2bd6; --danger:#ff4d1f; --reward:#ffe600; --drop:#05030a;
+  --f-logo:"Rubik Wet Paint","Luckiest Guy",Impact,sans-serif;
+  --f-shout:"Luckiest Guy",Impact,"Arial Black",sans-serif;
+  --f-ui:"Chakra Petch","Barlow",ui-sans-serif,sans-serif;
+  --f-body:"Barlow",ui-sans-serif,system-ui,sans-serif;
+  --stroke:3px;
+  --sw1:color-mix(in srgb,var(--power) 22%,var(--void)); --sw2:color-mix(in srgb,var(--power) 36%,var(--void));
+}
+.palbar{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));background:var(--ink);border-bottom:var(--stroke) solid var(--drop)}
+.palbar span{font-family:var(--f-ui);font-weight:700;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--fog);margin-right:6px}
+.palbar a{display:inline-flex;gap:6px;align-items:center;font-family:var(--f-ui);font-weight:700;font-size:13px;color:var(--bone);text-decoration:none;padding:4px 10px;border:2px solid var(--void-3)}
+.palbar a[aria-current]{border-color:var(--power);color:var(--power)}
+.palbar a i{display:flex}.palbar a i b{width:8px;height:14px;display:block}
+.palbar .cmp{margin-left:auto;color:var(--ui);border-color:var(--ui)}
+*{box-sizing:border-box}
+body{background:var(--void);color:var(--bone);font-family:var(--f-body);font-size:16px;line-height:1.55;overflow-x:hidden}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+section{padding-block:72px 24px}
+h1,h2,h3{margin:0;text-wrap:balance}
+h2{font-family:var(--f-shout);font-weight:400;font-size:clamp(34px,5vw,56px);line-height:1;letter-spacing:.01em;color:var(--bone);text-shadow:4px 4px 0 var(--ink)}
+h3{font-family:var(--f-ui);font-weight:700;font-size:18px;letter-spacing:.06em;text-transform:uppercase}
+p{margin:0}
+.eyebrow{font-family:var(--f-ui);font-weight:700;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--power);display:block;margin-bottom:10px}
+.lede{max-width:65ch;color:var(--fog);margin-top:14px;font-size:17px}
+.mono{font-family:var(--f-ui);font-variant-numeric:tabular-nums}
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:900px){.g3,.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){.g2,.g3,.g4{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--void-2);border:var(--stroke) solid var(--ink);box-shadow:6px 6px 0 var(--drop);padding:20px;min-width:0}
+.tag{display:inline-block;font-family:var(--f-ui);font-weight:700;font-size:12px;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border:2px solid var(--ink);background:var(--void-3);color:var(--bone)}
+ul.tight{margin:10px 0 0;padding-left:18px}
+ul.tight li{margin:4px 0}
+:focus-visible{outline:3px solid var(--reward);outline-offset:3px}
+
+/* ---------- HERO ---------- */
+.hero{position:relative;overflow:hidden;border-bottom:var(--stroke) solid var(--ink);
+  background:
+    radial-gradient(circle at 70% 42%, color-mix(in srgb,var(--power) 55%,transparent) 0, color-mix(in srgb,var(--power) 18%,transparent) 18%, transparent 38%),
+    conic-gradient(from 0deg at 70% 42%, var(--sw1), var(--void) 12%, var(--sw2) 22%, var(--void) 34%, var(--sw1) 48%, var(--void) 60%, var(--sw2) 74%, var(--void) 86%, var(--sw1)),
+    var(--void)}
+.hero::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(rgba(243,236,255,.55) 1px,transparent 1.5px),radial-gradient(color-mix(in srgb,var(--ui) 50%,transparent) 1px,transparent 1.5px);
+  background-size:120px 120px,190px 190px;background-position:13px 40px,80px 7px;mix-blend-mode:screen;opacity:.5}
+.hero-inner{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:24px;align-items:center;padding-block:40px 32px}
+@media (max-width:860px){.hero-inner{grid-template-columns:minmax(0,1fr)}}
+.logo{font-family:var(--f-logo);font-weight:400;line-height:.86;font-size:clamp(64px,10vw,124px);color:var(--power);
+  -webkit-text-stroke:3px var(--ink);paint-order:stroke fill;
+  text-shadow:0 0 18px color-mix(in srgb,var(--power) 65%,transparent),6px 7px 0 var(--ink);transform:rotate(-4deg);transform-origin:left center}
+.logo small{display:block;font-family:var(--f-shout);font-size:.42em;color:var(--bone);-webkit-text-stroke:2px var(--ink);text-shadow:4px 4px 0 var(--ink);transform:rotate(2deg) translateX(.3em);margin-top:.12em;letter-spacing:.04em}
+.hero .pitch{margin-top:26px;max-width:46ch;font-size:18px;color:var(--bone)}
+.hero .pitch b{color:var(--power)}
+.stage3d{position:relative;aspect-ratio:4/3;max-width:100%;width:100%;border:var(--stroke) solid var(--ink);box-shadow:8px 8px 0 var(--drop);background:radial-gradient(circle at 50% 35%,color-mix(in srgb,var(--power) 18%,transparent),transparent 60%),color-mix(in srgb,var(--void) 55%,transparent);overflow:hidden}
+.stage3d canvas{display:block;width:100%;height:100%}
+.stage3d .cap{position:absolute;left:10px;bottom:10px;z-index:3}
+.stage3d .combo{position:absolute;right:14px;top:10px;z-index:3;text-align:right;pointer-events:none}
+.combo .n{font-family:var(--f-shout);font-size:54px;line-height:.9;color:var(--combo);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:4px 4px 0 var(--ink);display:inline-block}
+.combo .l{font-family:var(--f-ui);font-weight:700;letter-spacing:.14em;font-size:12px;color:var(--bone)}
+.combo .dyn{font-family:"Times New Roman",serif;font-style:italic;font-weight:700;font-size:26px;color:var(--reward);text-shadow:3px 3px 0 var(--ink)}
+.pop{position:absolute;z-index:2;pointer-events:none;font-family:var(--f-shout);font-size:28px;color:#fff;-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:3px 3px 0 var(--ink);transform:translate(-50%,-50%);white-space:nowrap}
+.pop.crit{color:var(--reward);font-size:40px}
+.pop.out{color:var(--combo)}
+.stage3d.impact canvas{filter:invert(1) hue-rotate(180deg) contrast(1.4)}
+.fallback{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px;color:var(--fog)}
+
+/* ---------- PILLARS ---------- */
+.pillar{position:relative;padding-top:26px}
+.pillar .big{font-family:var(--f-shout);font-size:34px;line-height:1;text-shadow:3px 3px 0 var(--ink)}
+.pillar p{margin-top:10px;color:var(--fog)}
+.pillar .rule{margin-top:12px;font-family:var(--f-ui);font-size:14px;color:var(--bone);border-top:2px dashed var(--void-3);padding-top:10px}
+
+/* ---------- DIAG ---------- */
+.diag li{margin:6px 0}
+.diag .ok::marker{color:var(--power)}
+.diag .ko::marker{color:var(--danger)}
+
+/* ---------- PALETTE ---------- */
+.sw{border:var(--stroke) solid var(--ink);box-shadow:5px 5px 0 var(--drop);background:var(--void-2);min-width:0}
+.sw .chip{height:96px;border-bottom:var(--stroke) solid var(--ink);position:relative}
+.sw .chip.glow::after{content:"";position:absolute;inset:22px;border-radius:50%;filter:blur(18px);background:inherit;opacity:.9}
+.sw .meta{padding:12px 14px}
+.sw .name{font-family:var(--f-shout);font-size:22px}
+.sw .hex{font-family:var(--f-ui);font-size:13px;color:var(--fog)}
+.sw .role{font-size:14px;margin-top:6px}
+.neutrals{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.neutrals div{flex:1 1 120px;border:var(--stroke) solid var(--ink);padding:10px;font-family:var(--f-ui);font-size:13px}
+.law{margin-top:22px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;border:var(--stroke) solid var(--ink)}
+.law div{padding:14px;min-width:0;border-right:var(--stroke) solid var(--ink)}
+.law div:last-child{border-right:0}
+.law b{display:block;font-family:var(--f-shout);font-size:20px;font-weight:400;color:var(--ink)}
+.law span{font-size:13.5px;color:var(--ink);font-weight:600}
+@media (max-width:760px){.law{grid-template-columns:minmax(0,1fr)}.law div{border-right:0;border-bottom:var(--stroke) solid var(--ink)}.law div:last-child{border-bottom:0}}
+
+.stages{display:grid;gap:10px;margin-top:8px}
+.stg{display:grid;grid-template-columns:56px minmax(0,1.1fr) minmax(0,2fr);align-items:stretch;border:var(--stroke) solid var(--ink);box-shadow:5px 5px 0 var(--drop);min-width:0}
+.stg .num{font-family:var(--f-shout);font-size:30px;display:grid;place-items:center;background:var(--void-3);border-right:var(--stroke) solid var(--ink)}
+.stg .txt{padding:10px 14px;background:var(--void-2);min-width:0}
+.stg .txt b{font-family:var(--f-ui);letter-spacing:.06em;text-transform:uppercase;display:block}
+.stg .txt span{font-size:14px;color:var(--fog)}
+.stg .grad{position:relative;border-left:var(--stroke) solid var(--ink);min-height:74px}
+.stg .grad i{position:absolute;right:10px;bottom:8px;font-family:var(--f-ui);font-style:normal;font-size:12px;background:var(--ink);padding:2px 6px;color:var(--bone)}
+@media (max-width:620px){.stg{grid-template-columns:46px minmax(0,1fr)}.stg .grad{grid-column:1/-1;border-left:0;border-top:var(--stroke) solid var(--ink)}}
+
+/* ---------- RENDER ---------- */
+.pipe{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:var(--stroke) solid var(--ink);box-shadow:6px 6px 0 var(--drop);margin-top:8px}
+.pipe div{padding:14px;border-right:var(--stroke) solid var(--ink);background:var(--void-2);min-width:0}
+.pipe div:last-child{border-right:0}
+.pipe .k{font-family:var(--f-ui);font-size:12px;color:var(--power);letter-spacing:.14em}
+.pipe b{display:block;font-family:var(--f-ui);font-size:16px;margin:4px 0}
+.pipe span{font-size:14px;color:var(--fog)}
+@media (max-width:900px){.pipe{grid-template-columns:repeat(2,minmax(0,1fr))}.pipe div{border-bottom:var(--stroke) solid var(--ink)}}
+.toonbands{display:flex;height:46px;border:var(--stroke) solid var(--ink);margin-top:12px}
+.toonbands div{flex:1}
+
+/* ---------- CHARACTERS ---------- */
+.hero-card{position:relative;background:var(--void-2);border:var(--stroke) solid var(--ink);box-shadow:6px 6px 0 var(--drop);overflow:hidden;min-width:0}
+.hero-card .top{height:10px;background:var(--c)}
+.hero-card .body{padding:16px}
+.hero-card .nm{font-family:var(--f-shout);font-size:30px;line-height:1;color:var(--c);-webkit-text-stroke:1.5px var(--ink);paint-order:stroke fill;text-shadow:3px 3px 0 var(--ink)}
+.hero-card .role{font-family:var(--f-ui);font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--fog)}
+.hero-card dl{margin:12px 0 0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;font-size:14px}
+.hero-card dt{font-family:var(--f-ui);color:var(--fog);font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding-top:2px}
+.hero-card dd{margin:0}
+.boss{display:grid;grid-template-columns:44px minmax(0,1fr);border:var(--stroke) solid var(--ink);background:var(--void-2);box-shadow:5px 5px 0 var(--drop);min-width:0}
+.boss .bn{font-family:var(--f-shout);font-size:24px;display:grid;place-items:center;background:var(--danger);color:var(--ink);border-right:var(--stroke) solid var(--ink)}
+.boss .bt{padding:10px 14px;min-width:0}
+.boss b{font-family:var(--f-shout);font-weight:400;font-size:22px;display:block}
+.boss em{font-style:normal;font-family:var(--f-ui);font-size:12px;color:var(--danger);letter-spacing:.1em;text-transform:uppercase}
+.boss p{font-size:14px;color:var(--fog);margin-top:4px}
+.anat{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:18px;align-items:center}
+@media (max-width:760px){.anat{grid-template-columns:minmax(0,1fr)}}
+.anat svg{width:100%;height:auto;max-width:100%}
+
+/* ---------- TYPE ---------- */
+.spec{border:var(--stroke) solid var(--ink);background:var(--void-2);box-shadow:6px 6px 0 var(--drop);padding:18px;min-width:0;overflow:hidden}
+.spec .who{font-family:var(--f-ui);font-size:12px;letter-spacing:.14em;color:var(--fog);text-transform:uppercase}
+.spec .s1{font-family:var(--f-logo);font-size:clamp(44px,6vw,72px);color:var(--power);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:5px 5px 0 var(--ink);line-height:1}
+.spec .s2{font-family:var(--f-shout);font-size:clamp(36px,5vw,58px);line-height:1;color:var(--reward);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:4px 4px 0 var(--ink)}
+.spec .s3{font-family:var(--f-ui);font-weight:700;font-size:26px;letter-spacing:.06em}
+.spec .s4{font-family:var(--f-body);font-size:17px;max-width:60ch}
+.spec .use{margin-top:8px;font-size:14px;color:var(--fog)}
+
+/* ---------- UI KIT ---------- */
+.btns{display:flex;flex-wrap:wrap;gap:22px;align-items:center}
+.btn{font-family:var(--f-shout);font-size:26px;letter-spacing:.03em;padding:12px 26px 10px;border:var(--stroke) solid var(--ink);transform:skewX(-8deg);box-shadow:6px 6px 0 var(--drop);cursor:pointer;transition:transform .12s cubic-bezier(.34,1.56,.64,1),box-shadow .12s;color:var(--ink);background:var(--power)}
+.btn > span{display:inline-block;transform:skewX(8deg)}
+.btn:hover{transform:skewX(-8deg) translate(-3px,-3px);box-shadow:10px 10px 0 var(--drop)}
+.btn:active{transform:skewX(-8deg) translate(4px,4px);box-shadow:1px 1px 0 var(--drop)}
+.btn.sec{background:var(--void-3);color:var(--ui);box-shadow:6px 6px 0 var(--drop),inset 0 0 0 2px var(--ui)}
+.btn.dng{background:var(--danger)}
+.btn.sm{font-size:18px;padding:8px 18px 6px}
+
+.hud{position:relative;aspect-ratio:16/9;max-width:100%;border:var(--stroke) solid var(--ink);box-shadow:8px 8px 0 var(--drop);overflow:hidden;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--void) 15%,transparent),color-mix(in srgb,var(--void) 60%,transparent)),
+    repeating-linear-gradient(45deg,var(--void-3) 0 22px,var(--void-2) 22px 44px)}
+.hud .tl{position:absolute;left:3%;top:5%;display:flex;gap:12px;align-items:center}
+.port{width:64px;height:64px;border:var(--stroke) solid var(--ink);background:radial-gradient(circle at 50% 40%,#ffc9a8 0 32%,#4a2410 33% 46%,var(--ui) 47%);box-shadow:4px 4px 0 var(--drop);transform:skewX(-6deg);flex:none}
+.strings{display:flex;flex-direction:column;gap:4px}
+.strings .row{display:flex;gap:6px}
+.str{width:34px;height:6px;background:var(--ui);box-shadow:0 0 8px var(--ui);border:1.5px solid var(--ink)}
+.str.cut{background:transparent;box-shadow:none;border-style:dashed;opacity:.5}
+.tube{width:180px;max-width:28vw;height:16px;border:var(--stroke) solid var(--ink);background:var(--void);position:relative;overflow:hidden}
+.tube i{position:absolute;inset:0 30% 0 0;background:linear-gradient(90deg,color-mix(in srgb,var(--power) 45%,#000),var(--power));box-shadow:0 0 12px var(--power)}
+.tube.full i{right:0;animation:pulse 0.6s ease-in-out infinite alternate}
+@keyframes pulse{to{filter:brightness(1.5)}}
+.hud .lbl{font-family:var(--f-ui);font-weight:700;font-size:11px;letter-spacing:.14em;color:var(--bone)}
+.hud .tr{position:absolute;right:3%;top:5%;text-align:right}
+.hud .stg-name{font-family:var(--f-shout);font-size:clamp(16px,2.6vw,28px);text-shadow:3px 3px 0 var(--ink)}
+.kills{margin-top:6px;width:220px;max-width:34vw;height:12px;border:2px solid var(--ink);background:var(--void);margin-left:auto}
+.kills i{display:block;height:100%;width:73%;background:var(--danger)}
+.hud .cmb{position:absolute;right:4%;top:36%;text-align:right}
+.hud .cmb .n{font-family:var(--f-shout);font-size:clamp(40px,8vw,88px);line-height:.85;color:var(--combo);-webkit-text-stroke:3px var(--ink);paint-order:stroke fill;text-shadow:5px 5px 0 var(--ink);transform:rotate(-6deg);display:inline-block}
+.hud .cmb .dyn{font-family:"Times New Roman",serif;font-style:italic;font-weight:700;font-size:clamp(20px,3.6vw,38px);color:var(--reward);text-shadow:3px 3px 0 var(--ink)}
+.hud .cmb .decay{height:6px;background:var(--void);border:2px solid var(--ink);margin-top:4px;width:150px;max-width:24vw;margin-left:auto}
+.hud .cmb .decay i{display:block;height:100%;width:62%;background:var(--reward)}
+.hud .dmg{position:absolute;font-family:var(--f-shout);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:3px 3px 0 var(--ink)}
+.hud .vign{position:absolute;inset:0;box-shadow:inset 0 0 90px color-mix(in srgb,var(--danger) 45%,transparent);pointer-events:none}
+.scale{display:flex;flex-wrap:wrap;gap:0;border:var(--stroke) solid var(--ink);margin-top:14px}
+.scale div{flex:1 1 90px;padding:10px;text-align:center;border-right:2px solid var(--ink);background:var(--void-2)}
+.scale div:last-child{border-right:0}
+.scale b{display:block;font-family:"Times New Roman",serif;font-style:italic;font-size:26px}
+.scale span{font-family:var(--f-ui);font-size:11px;letter-spacing:.08em;color:var(--fog);text-transform:uppercase}
+
+.dlg{display:grid;grid-template-columns:120px minmax(0,1fr);gap:0;border:var(--stroke) solid var(--ink);box-shadow:8px 8px 0 var(--drop);background:var(--void-2);max-width:820px}
+.dlg .face{border-right:var(--stroke) solid var(--ink);background:radial-gradient(circle at 50% 55%,#d9d4c7 0 30%,transparent 31%),radial-gradient(circle at 50% 120%,#5b5a66 0 55%,transparent 56%),var(--danger);position:relative;min-height:120px}
+.dlg .face::before,.dlg .face::after{content:"";position:absolute;top:44%;width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--ink);box-shadow:inset 0 0 0 4px #fff,inset 0 0 0 7px var(--danger)}
+.dlg .face::before{left:36px}.dlg .face::after{right:36px}
+.dlg .txt{padding:14px 18px;min-width:0}
+.dlg .who{display:inline-block;font-family:var(--f-shout);font-size:20px;background:var(--danger);color:var(--ink);padding:2px 10px;border:2px solid var(--ink);transform:skewX(-8deg) translateY(-26px);margin-bottom:-18px}
+.dlg p{font-family:var(--f-ui);font-size:19px;font-weight:500}
+.dlg .nx{float:right;color:var(--power);animation:blink .7s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.dlg.me{margin-left:auto;grid-template-columns:minmax(0,1fr) 120px}
+.dlg.me .face{order:2;border-right:0;border-left:var(--stroke) solid var(--ink);background:radial-gradient(circle at 50% 50%,#ffc9a8 0 30%,transparent 31%),radial-gradient(circle at 50% 30%,#4a2410 0 36%,transparent 37%),var(--ui)}
+.dlg.me .face::before,.dlg.me .face::after{box-shadow:inset 0 0 0 5px #fff,inset 0 0 0 7px var(--drop)}
+.dlg.me .who{background:var(--ui)}
+@media (max-width:620px){.dlg,.dlg.me{grid-template-columns:72px minmax(0,1fr)}.dlg.me{grid-template-columns:minmax(0,1fr) 72px}.dlg .face{min-height:90px}.dlg .face::before{left:12px}.dlg .face::after{right:12px}}
+
+.bossintro{position:relative;aspect-ratio:16/7;max-width:100%;overflow:hidden;border:var(--stroke) solid var(--ink);box-shadow:8px 8px 0 var(--drop);background:var(--ink)}
+.bossintro .band{position:absolute;inset:18% -10% 18% -10%;background:var(--danger);transform:rotate(-7deg);border-block:6px solid var(--ink)}
+.bossintro .band::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(-45deg,transparent 0 26px,rgba(5,3,10,.18) 26px 52px)}
+.bossintro .silh{position:absolute;right:6%;bottom:-8%;width:34%;aspect-ratio:1;border-radius:46% 46% 10% 10%;background:var(--ink);box-shadow:0 0 0 4px var(--danger)}
+.bossintro .silh::before,.bossintro .silh::after{content:"";position:absolute;top:30%;width:18%;aspect-ratio:1;border-radius:50%;background:#fff;box-shadow:0 0 18px var(--danger),inset 0 0 0 6px var(--danger)}
+.bossintro .silh::before{left:24%}.bossintro .silh::after{right:24%}
+.bossintro .name{position:absolute;left:5%;top:30%;transform:rotate(-7deg)}
+.bossintro .name b{display:block;font-family:var(--f-shout);font-weight:400;font-size:clamp(34px,7.5vw,92px);line-height:.9;color:var(--bone);-webkit-text-stroke:3px var(--ink);paint-order:stroke fill;text-shadow:6px 6px 0 var(--ink)}
+.bossintro .name span{font-family:var(--f-ui);font-weight:700;letter-spacing:.2em;font-size:clamp(11px,1.6vw,16px);color:var(--ink);text-transform:uppercase}
+
+.event{position:relative;border:var(--stroke) solid var(--ink);box-shadow:8px 8px 0 var(--drop);background:var(--void-2);overflow:hidden}
+.event .tape{height:22px;background:repeating-linear-gradient(-45deg,var(--reward) 0 18px,var(--ink) 18px 36px)}
+.event .in{padding:16px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.event .in b{font-family:var(--f-shout);font-weight:400;font-size:clamp(26px,4vw,40px);color:var(--reward);text-shadow:3px 3px 0 var(--ink);line-height:1}
+.event .in span{color:var(--fog);font-family:var(--f-ui)}
+.event .timer{margin-left:auto;font-family:var(--f-ui);font-weight:700;font-size:28px;color:var(--bone)}
+
+.nums{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-end;padding:20px;border:var(--stroke) solid var(--ink);background:repeating-linear-gradient(45deg,var(--void-3) 0 22px,var(--void-2) 22px 44px)}
+.nums div{text-align:center}
+.nums .v{font-family:var(--f-shout);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:3px 3px 0 var(--ink);line-height:1}
+.nums .k{font-family:var(--f-ui);font-size:12px;color:var(--fog);letter-spacing:.08em;text-transform:uppercase;margin-top:6px}
+
+/* ---------- JUICE TABLE ---------- */
+.tbl{overflow-x:auto;border:var(--stroke) solid var(--ink);box-shadow:6px 6px 0 var(--drop)}
+table{border-collapse:collapse;width:100%;min-width:760px;background:var(--void-2)}
+th,td{padding:10px 12px;text-align:left;border-bottom:2px solid var(--ink);font-size:14.5px;vertical-align:top}
+th{font-family:var(--f-ui);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--fog);background:var(--void-3)}
+td:first-child{font-family:var(--f-ui);font-weight:700}
+td.n{font-family:var(--f-ui);font-variant-numeric:tabular-nums;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+
+.evlist{display:grid;gap:14px}
+.ev{border-left:6px solid var(--c,var(--reward));background:var(--void-2);padding:12px 16px;border-top:2px solid var(--ink);border-right:2px solid var(--ink);border-bottom:2px solid var(--ink)}
+.ev b{font-family:var(--f-shout);font-weight:400;font-size:21px;color:var(--c,var(--reward))}
+.ev p{font-size:14.5px;color:var(--fog);margin-top:2px}
+
+.note{margin-top:22px;padding:14px 18px;border:2px dashed var(--fog);color:var(--fog);font-size:14.5px;max-width:80ch}
+footer{padding-block:40px 60px;color:var(--fog);font-size:14px}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<nav class="palbar" id="palbar" aria-label="Palette affichée"></nav>
+<header class="hero">
+  <div class="wrap hero-inner">
+    <div>
+      <span class="eyebrow">Bible visuelle · refonte 3D</span>
+      <h1 class="logo">Contrabass<small>HERO</small></h1>
+      <p class="pitch">Le conservatoire a ouvert une faille. Les profs en sortent par centaines. Six musiciens, six instruments, <b>zéro respect pour le solfège</b>.</p>
+      <p class="lede">Direction : cartoon cosmique crade, contour encre épais, néon toxique, agressif. Une vraie 3D en toon shading, pas des sprites. À droite, un prototype du rendu cible en Three.js.</p>
+    </div>
+    <div class="stage3d" id="stage3d">
+      <canvas id="c3d" aria-label="Prototype 3D : Armand fait tournoyer sa contrebasse et éjecte des profs de la plateforme"></canvas>
+      <div class="combo" aria-hidden="true"><div><span class="n" id="cmbN">0</span></div><div class="l">COUPS</div><div class="dyn" id="cmbD">pp</div></div>
+      <span class="tag cap">Prototype live · toon 3 tons + contour + néon</span>
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="wrap" id="concept">
+  <span class="eyebrow">01 · Analyse</span>
+  <h2>Ce que j'ai compris du jeu</h2>
+  <p class="lede">Un hack'n'slash d'arène frénétique. Un jeune musicien cogne des hordes de profs avec son instrument sur une plateforme suspendue dans le vide. Le but : les éjecter hors de l'arène, atteindre le quota, abattre le boss, passer au stage suivant. Sept stages, sept boss, six héros avec chacun un pouvoir absurde (prout toxique, poule, chat-missile, bombe nucléaire).</p>
+  <div class="grid g2" style="margin-top:24px">
+    <div class="panel diag">
+      <h3 style="color:var(--power)">Ce qui marche déjà</h3>
+      <ul class="tight">
+        <li class="ok">Le fantasme est clair et drôle : l'instrument comme arme, les profs comme horde.</li>
+        <li class="ok">L'éjection dans le vide : une vraie mécanique de positionnement.</li>
+        <li class="ok">Les boss ont des patterns (carapace, terrier, bonds, étreinte).</li>
+        <li class="ok">Les bases du ressenti existent : hit-stop, tremblement, recul.</li>
+        <li class="ok">Les décors destructibles.</li>
+      </ul>
+    </div>
+    <div class="panel diag">
+      <h3 style="color:var(--danger)">Ce qui bride la frénésie</h3>
+      <ul class="tight">
+        <li class="ko">Un seul coup, toujours le même : pas de combo, pas d'esquive, pas de coup lourd.</li>
+        <li class="ko">1 prof par seconde : ce n'est pas une horde, c'est une file d'attente.</li>
+        <li class="ko">Un seul type d'ennemi : rien à lire, rien à prioriser.</li>
+        <li class="ko">Sprites pixel 64 px en 3D : les silhouettes se perdent, pas de lumière.</li>
+        <li class="ko">UI emoji + police pixel générique, sans identité.</li>
+        <li class="ko">Aucune narration : pas de dialogue, pas d'événement, rien d'imprévu.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="piliers">
+  <span class="eyebrow">02 · Piliers</span>
+  <h2>Quatre règles qui décident de tout</h2>
+  <div class="grid g4" style="margin-top:24px">
+    <div class="panel pillar"><div class="big" style="color:var(--combo)">FRÉNÉSIE</div><p>Toujours trop d'ennemis. Le joueur ne s'arrête jamais de frapper.</p><div class="rule">40 à 80 profs à l'écran. Zéro temps mort de plus de 3 s.</div></div>
+    <div class="panel pillar"><div class="big" style="color:var(--reward)">IMPACT</div><p>Chaque coup se sent dans l'image, le son et la manette.</p><div class="rule">Aucun coup sans hit-stop, flash, son et particules.</div></div>
+    <div class="panel pillar"><div class="big" style="color:var(--ui)">LISIBLE</div><p>Dans le chaos, on sait toujours qui est qui et ce qui va faire mal.</p><div class="rule">Ennemis ternes, héros néon. Le danger a une seule couleur, sans exception.</div></div>
+    <div class="panel pillar"><div class="big" style="color:var(--power)">ABSURDE</div><p>Le sérieux est l'ennemi. Humour grinçant pour ados et adultes, visages exorbités, pouvoirs débiles.</p><div class="rule">Chaque écran doit contenir au moins un détail idiot.</div></div>
+  </div>
+</section>
+
+<section class="wrap" id="couleur">
+  <span class="eyebrow">03 · Couleur</span>
+  <h2>Le vide, et cinq néons</h2>
+  <p class="lede">Le fond est toujours un vide violet-noir. Cinq néons saturés portent chacun un seul sens. Les ennemis restent désaturés pour que les héros et les effets ressortent.</p>
+  <div class="grid g4" id="swatches" style="margin-top:24px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))"></div>
+  <div class="neutrals" id="neutrals"></div>
+  <div class="law" id="law" aria-label="Grammaire couleur"></div>
+
+  <h3 style="margin-top:44px">Ambiance par stage</h3>
+  <p class="lede" style="margin-top:6px">Chaque stage garde le vide en fond, mais change sa lumière d'ambiance et son néon de décor. La couleur danger lui reste réservée, même au volcan (là, les télégraphes passent en blanc chauffé).</p>
+  <div class="stages">
+    <div class="stg"><div class="num">1</div><div class="txt"><b>École</b><span>Néons de couloir, casiers, lino damier. Boss : le Directeur.</span></div><div class="grad" style="background:linear-gradient(90deg,#1b1a3a,#2a2a6a 55%,#19e3ff)"><i>#1B1A3A → #19E3FF</i></div></div>
+    <div class="stg"><div class="num">2</div><div class="txt"><b>Montagne</b><span>Glacier UV, neige bleutée, aurores. Boss : l'Aigle.</span></div><div class="grad" style="background:linear-gradient(90deg,#0d2a4a,#2f6ea0 55%,#9ff3ff)"><i>#0D2A4A → #9FF3FF</i></div></div>
+    <div class="stg"><div class="num">3</div><div class="txt"><b>Potager</b><span>Potager radioactif, légumes qui luisent. Boss : Kawik.</span></div><div class="grad" style="background:linear-gradient(90deg,#0e2a12,#2d6b1a 55%,#7cff2e)"><i>#0E2A12 → #7CFF2E</i></div></div>
+    <div class="stg"><div class="num">4</div><div class="txt"><b>Désert</b><span>Désert synthwave, soleil rayé, sable rose. Boss : Tatoo.</span></div><div class="grad" style="background:linear-gradient(90deg,#3a1240,#a0306a 55%,#ff9a3c)"><i>#3A1240 → #FF9A3C</i></div></div>
+    <div class="stg"><div class="num">5</div><div class="txt"><b>Volcan</b><span>Forge, roche noire, fissures de lave. Boss : la Taupe.</span></div><div class="grad" style="background:linear-gradient(90deg,#1a0500,#6a1400 55%,#ff3d00)"><i>#1A0500 → #FF3D00</i></div></div>
+    <div class="stg"><div class="num">6</div><div class="txt"><b>Jardin enchanté</b><span>Champignons fluo, nains de jardin louches. Boss : Ninja Pain.</span></div><div class="grad" style="background:linear-gradient(90deg,#1d0b33,#6a1f9a 55%,#d04bff)"><i>#1D0B33 → #D04BFF</i></div></div>
+    <div class="stg"><div class="num">7</div><div class="txt"><b>Jungle</b><span>Jungle bioluminescente, totems, lianes. Boss : le Serpent.</span></div><div class="grad" style="background:linear-gradient(90deg,#03140f,#0b5a40 55%,#00ffa3)"><i>#03140F → #00FFA3</i></div></div>
+  </div>
+</section>
+
+<section class="wrap" id="rendu">
+  <span class="eyebrow">04 · Rendu 3D</span>
+  <h2>Toon, encre et lumière néon</h2>
+  <p class="lede">On quitte les sprites pixel. Tout devient des modèles 3D en toon shading, avec un contour noir épais façon dessin animé. La lumière vient des néons : un éclairage principal froid, et des contre-jours colorés qui détourent chaque silhouette.</p>
+  <div class="pipe">
+    <div><span class="k">1 · OMBRAGE</span><b>Toon 3 tons</b><span>Ombre, ton moyen, lumière. Aucun dégradé doux.</span></div>
+    <div><span class="k">2 · CONTOUR</span><b>Encre épaisse</b><span>Coque inversée noire. S'épaissit sur le coup reçu.</span></div>
+    <div><span class="k">3 · CONTRE-JOUR</span><b>Rim néon</b><span>Couleur du stage derrière chaque perso.</span></div>
+    <div><span class="k">4 · ÉMISSIF</span><b>Bloom ciblé</b><span>Seuls yeux, cordes, pouvoirs et faille brillent.</span></div>
+    <div><span class="k">5 · POST</span><b>Grain + vignette</b><span>Aberration chromatique uniquement sur l'impact.</span></div>
+    <div><span class="k">6 · CAMÉRA</span><b>Iso dynamique</b><span>Zoom sur le coup lourd, recul sur la horde.</span></div>
+  </div>
+  <div class="toonbands" aria-label="Exemple des trois tons sur la peau">
+    <div style="background:#b0705a"></div><div style="background:#e6a088"></div><div style="background:#ffc9a8"></div><div style="background:#05030a;flex:.15"></div><div style="background:#19e3ff;flex:.35"></div>
+  </div>
+  <p class="lede" style="margin-top:8px;font-size:14px">Ombre · ton moyen · lumière · contour · contre-jour néon</p>
+</section>
+
+<section class="wrap" id="persos">
+  <span class="eyebrow">05 · Personnages</span>
+  <h2>Grosses têtes, yeux exorbités</h2>
+  <div class="anat" style="margin-top:20px">
+    <svg viewBox="0 0 300 300" role="img" aria-label="Proportions : tête 40 % de la hauteur, yeux énormes, membres en spaghetti">
+      <rect x="0" y="0" width="300" height="300" style="fill:var(--void-2)"/>
+      <g stroke="#05030a" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M128 250 L120 286 M168 250 L176 286" fill="none" stroke-width="10"/>
+        <path d="M112 160 Q148 146 184 160 L190 254 L106 254 Z" fill="#2f7bff"/>
+        <path d="M112 170 Q80 200 70 236 M184 170 Q222 190 236 220" fill="none" stroke-width="9"/>
+        <ellipse cx="148" cy="96" rx="64" ry="66" fill="#ffc9a8"/>
+        <path d="M86 92 Q90 26 150 28 Q214 30 212 90 Q190 60 150 58 Q108 60 86 92 Z" fill="#4a2410"/>
+        <circle cx="124" cy="100" r="22" fill="#fff"/><circle cx="174" cy="100" r="22" fill="#fff"/>
+        <path d="M118 136 Q148 156 180 134 Q150 146 118 136 Z" fill="#05030a"/>
+      </g>
+      <circle cx="128" cy="102" r="3.5" fill="#05030a"/><circle cx="168" cy="98" r="3.5" fill="#05030a"/>
+      <path d="M210 138 q6 14 0 22" style="stroke:var(--power)" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <g font-family="Chakra Petch, sans-serif" font-size="12" style="fill:var(--fog)">
+        <line x1="250" y1="30" x2="250" y2="162" style="stroke:var(--power)" stroke-width="2"/><text x="256" y="100" style="fill:var(--power)">40 %</text>
+        <text x="8" y="294">contour 6 px · pupilles 1/6 de l'œil</text>
+      </g>
+    </svg>
+    <div>
+      <ul class="tight" style="padding-left:18px;margin:0">
+        <li><b>Tête = 40 % de la hauteur.</b> La lecture d'un perso se fait par la tête, même minuscule à l'écran.</li>
+        <li><b>Yeux énormes, pupilles minuscules</b>, légèrement désaxées. C'est la signature de l'absurde.</li>
+        <li><b>Membres en spaghetti</b> : fins, souples, ils s'étirent sur les coups (squash and stretch).</li>
+        <li><b>L'instrument est plus gros que le perso.</b> C'est lui qui fait la silhouette.</li>
+        <li><b>Bouche toujours ouverte</b> pendant l'action : cri, rictus, langue. Gouttes de sueur et de bave couleur pouvoir.</li>
+        <li><b>Profs ternes</b> (gris, beige, marron) avec yeux qui luisent couleur danger : on les repère sans les confondre avec les héros.</li>
+        <li><b>Pas de sang réaliste.</b> Un ennemi vaincu éclate en giclées d'encre noire et confettis de partition, façon cartoon trash.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="margin-top:44px">Les six héros · un néon chacun</h3>
+  <p class="lede" style="margin-top:6px">Le néon d'un héros colore ses traînées d'arme, son pouvoir et son interface. Rien d'autre.</p>
+  <div class="grid g3" style="margin-top:18px">
+    <div class="hero-card" style="--c:#19e3ff"><div class="top"></div><div class="body"><div class="nm">Armand</div><div class="role">Le bassiste</div><dl><dt>Arme</dt><dd>Contrebasse, cordes néon</dd><dt>Silhouette</dt><dd>Instrument vertical, 1,5 × sa taille</dd><dt>Pouvoir</dt><dd>Toupie d'archet : traînée cyan en spirale, rebonds sur les bords</dd></dl></div></div>
+    <div class="hero-card" style="--c:#ffb21a"><div class="top"></div><div class="body"><div class="nm">Adrien</div><div class="role">Le batteur</div><dl><dt>Arme</dt><dd>Baguettes géantes</dd><dt>Silhouette</dt><dd>Cheveux blonds en pétard, frappe double</dd><dt>Pouvoir</dt><dd>Rugissement du lion : onde de choc ambre, crinière en flammes</dd></dl></div></div>
+    <div class="hero-card" style="--c:#a6ff00"><div class="top"></div><div class="body"><div class="nm">Eliot</div><div class="role">Le guitariste</div><dl><dt>Arme</dt><dd>Guitare électrique, swing en hache</dd><dt>Silhouette</dt><dd>Lunettes, manche en diagonale</dd><dt>Pouvoir</dt><dd>Attaque au gaz : nuages verts qui bouillonnent, profs qui verdissent</dd></dl></div></div>
+    <div class="hero-card" style="--c:#8f6bff"><div class="top"></div><div class="body"><div class="nm">Swan</div><div class="role">Le pianiste</div><dl><dt>Arme</dt><dd>Clavier massue</dd><dt>Silhouette</dt><dd>Cheveux bouclés, clavier horizontal</dd><dt>Pouvoir</dt><dd>Chat-missile : chat en boule violette, sillage de touches</dd></dl></div></div>
+    <div class="hero-card" style="--c:#fff6a0"><div class="top"></div><div class="body"><div class="nm">Pierre</div><div class="role">Le maestro</div><dl><dt>Arme</dt><dd>Clavecin baroque</dd><dt>Silhouette</dt><dd>Queue de cheval, jabot blanc</dd><dt>Pouvoir</dt><dd>Frappe nucléaire : écran blanc, champignon, silence total 0,5 s</dd></dl></div></div>
+    <div class="hero-card" style="--c:#ff5fd2"><div class="top"></div><div class="body"><div class="nm">Audrey</div><div class="role">La soprano</div><dl><dt>Arme</dt><dd>Notes de musique en projectiles</dd><dt>Silhouette</dt><dd>Robe évasée, bouche grande ouverte</dd><dt>Pouvoir</dt><dd>Mode poule : poule géante rose, plumes partout</dd></dl></div></div>
+  </div>
+
+  <h3 style="margin-top:44px">Les sept boss · toujours couleur danger</h3>
+  <p class="lede" style="margin-top:6px">Chaque boss a un titre, une carte d'entrée et des télégraphes couleur danger au sol avant chaque attaque.</p>
+  <div class="grid g3" style="margin-top:18px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))">
+    <div class="boss"><div class="bn">1</div><div class="bt"><b>Le Directeur</b><em>Tyran du règlement intérieur</em><p>Costume trop grand, mégaphone. Charge en ligne droite.</p></div></div>
+    <div class="boss"><div class="bn">2</div><div class="bt"><b>L'Aigle</b><em>Prédateur des cimes</em><p>Ombre au sol avant chaque piqué.</p></div></div>
+    <div class="boss"><div class="bn">3</div><div class="bt"><b>Kawik</b><em>Cochon d'Inde colossal</em><p>Mignon et énorme. Les joues gonflent avant l'attaque.</p></div></div>
+    <div class="boss"><div class="bn">4</div><div class="bt"><b>Tatoo</b><em>Boule de démolition blindée</em><p>Carapace qui roule. Traînée d'étincelles, invulnérable.</p></div></div>
+    <div class="boss"><div class="bn">5</div><div class="bt"><b>La Taupe</b><em>Terreur du sous-sol</em><p>Fissures blanches chauffées là où elle va surgir.</p></div></div>
+    <div class="boss"><div class="bn">6</div><div class="bt"><b>Ninja Pain</b><em>Lapin assassin</em><p>Bandeau, carottes piégées, éclairs. Phase 2 sous 50 %.</p></div></div>
+    <div class="boss"><div class="bn">7</div><div class="bt"><b>Le Serpent</b><em>L'Étreinte</em><p>S'enroule autour du héros. Trois sauts pour s'en sortir.</p></div></div>
+  </div>
+</section>
+
+<section class="wrap" id="typo">
+  <span class="eyebrow">06 · Typographie</span>
+  <h2>Quatre voix, quatre rôles</h2>
+  <div class="grid g2" style="margin-top:24px">
+    <div class="spec"><div class="who">Logo · Rubik Wet Paint</div><div class="s1">Contrabass</div><p class="use">Uniquement le logo et les titres de stage. Elle coule comme de la bave.</p></div>
+    <div class="spec"><div class="who">Cri · Luckiest Guy</div><div class="s2">FORTISSIMO !</div><p class="use">Combos, boss, événements, boutons. Toujours avec contour encre et ombre portée dure.</p></div>
+    <div class="spec"><div class="who">Interface · Chakra Petch</div><div class="s3">SCORE 0 128 450</div><p class="use">HUD, chiffres, étiquettes, dialogues. Chiffres à chasse fixe.</p></div>
+    <div class="spec"><div class="who">Texte · Barlow</div><div class="s4">Le texte courant : options, aide, descriptions de pouvoirs. Simple et lisible, il ne crie jamais.</div><p class="use">Paragraphes et menus secondaires.</p></div>
+  </div>
+</section>
+
+<section class="wrap" id="ui">
+  <span class="eyebrow">07 · Interface</span>
+  <h2>Des boutons qui cognent</h2>
+  <p class="lede">Formes inclinées, contour encre 3 px, ombre portée dure décalée. Survol : le bouton se soulève. Clic : il s'écrase sur son ombre. Rien d'arrondi, rien de flou.</p>
+  <div class="btns" style="margin-top:22px">
+    <button class="btn" type="button"><span>JOUER</span></button>
+    <button class="btn sec" type="button"><span>OPTIONS</span></button>
+    <button class="btn dng" type="button"><span>ABANDONNER</span></button>
+    <button class="btn sm" type="button" style="background:var(--reward)"><span>RÉCLAMER</span></button>
+  </div>
+
+  <h3 style="margin-top:44px">HUD en combat</h3>
+  <div class="hud" style="margin-top:14px">
+    <div class="vign"></div>
+    <div class="tl">
+      <div class="port"></div>
+      <div class="strings">
+        <span class="lbl">CORDES</span>
+        <div class="row"><i class="str"></i><i class="str"></i><i class="str"></i><i class="str cut"></i><i class="str cut"></i></div>
+        <span class="lbl" style="margin-top:6px">TOUPIE D'ARCHET · PRÊT</span>
+        <div class="tube full"><i></i></div>
+      </div>
+    </div>
+    <div class="tr">
+      <div class="stg-name">STAGE 1 · L'ÉCOLE</div>
+      <div class="lbl" style="margin-top:4px">11 / 15 PROFS AVANT LE BOSS</div>
+      <div class="kills"><i></i></div>
+      <div class="lbl mono" style="margin-top:8px;font-size:16px;color:var(--reward)">0 128 450</div>
+    </div>
+    <div class="cmb"><span class="n">47</span><div class="dyn">ff · fortissimo</div><div class="decay"><i></i></div></div>
+    <span class="dmg" style="left:30%;top:52%;font-size:28px;color:#fff">40</span>
+    <span class="dmg" style="left:44%;top:40%;font-size:44px;color:var(--reward);transform:rotate(-8deg)">120 !</span>
+    <span class="dmg" style="left:18%;top:68%;font-size:30px;color:var(--combo)">OUT !</span>
+  </div>
+  <div class="grid g3" style="margin-top:16px">
+    <p><b style="color:var(--ui)">Les vies sont des cordes.</b> Cinq cordes néon. Un coup reçu : une corde casse, avec un « twang » et une vignette couleur danger.</p>
+    <p><b style="color:var(--combo)">Le combo se mesure en nuances.</b> De pianissimo à fortississimo. Plus on frappe sans être touché, plus la musique s'intensifie et le score se multiplie.</p>
+    <p><b style="color:var(--power)">Le pouvoir est un tube de bave</b> qui se remplit avec les coups et pulse quand il est prêt.</p>
+  </div>
+  <div class="scale" aria-label="Échelle des nuances de combo">
+    <div><b style="color:var(--fog)">pp</b><span>0-9 · ×1</span></div>
+    <div><b style="color:var(--bone)">p</b><span>10-19 · ×1,2</span></div>
+    <div><b style="color:var(--ui)">mf</b><span>20-34 · ×1,5</span></div>
+    <div><b style="color:var(--power)">f</b><span>35-49 · ×2</span></div>
+    <div><b style="color:var(--reward)">ff</b><span>50-79 · ×3</span></div>
+    <div><b style="color:var(--combo)">fff</b><span>80+ · ×5 · musique épique</span></div>
+  </div>
+
+  <h3 style="margin-top:44px">Dialogues</h3>
+  <p class="lede" style="margin-top:6px">Boîtes à portrait, nom en étiquette inclinée, texte qui s'écrit lettre par lettre. Ennemi à gauche, héros à droite. Le jeu continue en arrière-plan pendant les répliques de combat ; seules les scènes d'avant-boss figent l'action.</p>
+  <div style="display:grid;gap:30px;margin-top:30px">
+    <div class="dlg"><div class="face"></div><div class="txt"><span class="who">LE DIRECTEUR</span><p>Monsieur Armand. Trois ans de contrebasse et toujours aucun talent. C'est presque un exploit.</p></div></div>
+    <div class="dlg me"><div class="face"></div><div class="txt"><span class="who">ARMAND</span><p>Trente ans de carrière et pas un élève qui vous regrette. On est quittes. <span class="nx">▶</span></p></div></div>
+  </div>
+
+  <h3 style="margin-top:44px">Entrée de boss</h3>
+  <div class="bossintro" style="margin-top:14px">
+    <div class="band"></div>
+    <div class="silh"></div>
+    <div class="name"><b>LE DIRECTEUR</b><span>Tyran du règlement intérieur · Stage 1</span></div>
+  </div>
+
+  <h3 style="margin-top:44px">Événement surprise</h3>
+  <div class="event" style="margin-top:14px">
+    <div class="tape"></div>
+    <div class="in"><b>COUPURE DE COURANT !</b><span>Noir total. Seuls les néons et les yeux des profs restent visibles.</span><span class="timer mono">0:20</span></div>
+  </div>
+
+  <h3 style="margin-top:44px">Chiffres flottants</h3>
+  <div class="nums" style="margin-top:14px">
+    <div><div class="v" style="font-size:30px;color:#fff">40</div><div class="k">Coup normal</div></div>
+    <div><div class="v" style="font-size:48px;color:var(--reward);transform:rotate(-8deg)">120 !</div><div class="k">Critique / pouvoir</div></div>
+    <div><div class="v" style="font-size:36px;color:var(--combo)">OUT !</div><div class="k">Éjecté dans le vide</div></div>
+    <div><div class="v" style="font-size:26px;color:var(--power)">+1 CORDE</div><div class="k">Soin</div></div>
+    <div><div class="v" style="font-size:26px;color:var(--fog)">BLOQUÉ</div><div class="k">Boss invulnérable</div></div>
+  </div>
+</section>
+
+<section class="wrap" id="juice">
+  <span class="eyebrow">08 · Ressenti</span>
+  <h2>Chaque coup doit faire mal</h2>
+  <p class="lede">Le tableau de référence du « juice ». Les durées sont en images à 60 i/s. Les animations d'interface entrent avec un rebond (overshoot) et sortent sèches, en 120 à 240 ms. Rien de linéaire.</p>
+  <div class="tbl" style="margin-top:20px">
+    <table>
+      <thead><tr><th>Moment</th><th>Gel</th><th>Tremblement</th><th>Image</th><th>Caméra</th><th>Son</th></tr></thead>
+      <tbody>
+        <tr><td>Coup léger</td><td class="n">3 i</td><td class="n">0,15</td><td>Flash blanc 2 i sur la cible, étincelles</td><td>—</td><td>Thump sec</td></tr>
+        <tr><td>Fin de combo / coup lourd</td><td class="n">6 i</td><td class="n">0,35</td><td>Contour épaissi, traînée néon, onde au sol</td><td>Zoom +4 %</td><td>Thump + accord</td></tr>
+        <tr><td>Éjection dans le vide</td><td class="n">0</td><td class="n">0,1</td><td>Traînée, étoile au loin, « OUT ! »</td><td>—</td><td>Sifflet descendant</td></tr>
+        <tr><td>Pouvoir spécial</td><td class="n">10 i</td><td class="n">0,5</td><td>Cut-in portrait 0,6 s, aberration chromatique</td><td>Recul puis punch</td><td>Riff du perso</td></tr>
+        <tr><td>Dégât reçu</td><td class="n">4 i</td><td class="n">0,4</td><td>Vignette danger, corde qui casse</td><td>Secousse</td><td>Twang</td></tr>
+        <tr><td>Dernier coup sur un boss</td><td class="n">ralenti ×0,25 · 1,2 s</td><td class="n">0,8</td><td>Image d'impact inversée 2 i, explosion de partitions</td><td>Zoom serré</td><td>Silence puis boum</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="wrap" id="gameplay">
+  <span class="eyebrow">09 · Gameplay</span>
+  <h2>Ce que la refonte ajoute</h2>
+  <div class="grid g2" style="margin-top:24px">
+    <div class="panel">
+      <h3 style="color:var(--combo)">Combat</h3>
+      <ul class="tight">
+        <li>Chaîne de 4 coups (3 légers + finisher qui projette).</li>
+        <li>Coup lourd chargé : maintien de la touche, onde de choc.</li>
+        <li>Dash avec invulnérabilité courte, traînée néon.</li>
+        <li>Saut + frappe au sol : smash qui fait décoller la horde.</li>
+        <li>Jauge de pouvoir remplie par les coups, plus seulement un délai.</li>
+        <li>Clavier et manette, vibrations sur les gros impacts.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3 style="color:var(--danger)">Horde</h3>
+      <ul class="tight">
+        <li><b>Prof de solfège</b> : de base, en masse.</li>
+        <li><b>Surveillant</b> : rapide, sifflet, attaque en meute.</li>
+        <li><b>Prof de maths</b> : à distance, lance des craies.</li>
+        <li><b>CPE</b> : tank, bouclier-cartable de face.</li>
+        <li><b>Inspecteur</b> : élite, renforce les profs autour de lui.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="margin-top:36px">Événements surprises</h3>
+  <p class="lede" style="margin-top:6px">Un événement aléatoire tous les 60 à 90 s, annoncé par la bande jaune et noire. Il casse le rythme avant que la routine s'installe.</p>
+  <div class="evlist" style="margin-top:14px">
+    <div class="ev"><b>Coupure de courant</b><p>Noir total pendant 20 s. Seuls les néons, les contours des héros et les yeux des profs restent visibles.</p></div>
+    <div class="ev" style="--c:var(--power)"><b>Faille dimensionnelle</b><p>Un portail s'ouvre en plein milieu : des profs mutants d'un autre stage en sortent.</p></div>
+    <div class="ev" style="--c:var(--danger)"><b>Contrôle surprise</b><p>Des tables tombent du ciel, l'arène rétrécit pendant 30 s.</p></div>
+    <div class="ev" style="--c:var(--combo)"><b>Récré !</b><p>Pluie de bonus et de cordes de soin pendant 10 s. La musique accélère.</p></div>
+    <div class="ev" style="--c:var(--ui)"><b>Conseil de classe</b><p>Trois inspecteurs arrivent ensemble, liés par un rayon. Les séparer pour les battre.</p></div>
+    <div class="ev"><b>Le retour du Directeur</b><p>Il traverse l'arène en hélicoptère, lâche une volée de profs et une insulte.</p></div>
+  </div>
+
+  <div class="grid g2" style="margin-top:30px">
+    <div class="panel">
+      <h3 style="color:var(--ui)">Dialogues et narration</h3>
+      <ul class="tight">
+        <li>Intro de stage : 2 répliques entre héros, sans figer le jeu.</li>
+        <li>Avant-boss : scène de 3 à 5 répliques, boss contre héros, propre à chaque perso.</li>
+        <li>Barks de combat : profs qui insultent, héros qui répondent sur les gros combos.</li>
+        <li>Mort du boss : dernière réplique pathétique.</li>
+        <li>Ton grinçant, public ados et adultes : les profs sont méprisants, les héros insolents.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3 style="color:var(--power)">Menus</h3>
+      <ul class="tight">
+        <li>Écran titre = la scène 3D en direct : le groupe sur la plateforme, la faille qui tourne derrière.</li>
+        <li>Sélection : podium 3D tournant, cut-in du héros, démonstration du pouvoir.</li>
+        <li>Pause, game over et victoire dans le même langage : bandes inclinées, gros cris, stats de fin.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="note">Les trois images de référence servent pour leurs qualités : contour épais, vert de faille, visages exorbités, cosmos un peu crade. Le jeu garde ses propres personnages, son logo et ses typos ; rien n'est repris de la série.</p>
+</section>
+</main>
+
+<footer class="wrap">Contrabass Hero · bible visuelle v1 · novembre 2026 · <a href="./palettes.html" style="color:var(--ui)">Comparer les palettes</a></footer>
+
+<script>
+(function(){
+  const P = window.PAL;
+  const bar = document.getElementById("palbar");
+  bar.innerHTML = "<span>Palette</span>" + PALETTES.map(p =>
+    `<a href="?p=${p.id}"${p.id===P.id?" aria-current=\"page\"":""}><i>${ROLES.map(([k])=>`<b style="background:${p[k][0]}"></b>`).join("")}</i>${p.name}</a>`).join("")
+    + `<a class="cmp" href="./palettes.html">Comparer</a>`;
+  document.getElementById("swatches").innerHTML = ROLES.map(([k,label,role]) =>
+    `<div class="sw"><div class="chip glow" style="background:var(--${k})"></div><div class="meta"><div class="name" style="color:var(--${k})">${P[k][1]}</div><div class="hex">${label} · ${P[k][0].toUpperCase()}</div><div class="role">${role}</div></div></div>`).join("");
+  const neu = [["Vide",P.void],["Vide 2",P.void2],["Vide 3",P.void3],["Encre (contours)",P.ink],["Os (texte)",P.bone,1],["Prof (costume)","#6b6a75",1]];
+  document.getElementById("neutrals").innerHTML = neu.map(([n,h,light]) => `<div style="background:${h};color:${light?P.ink:P.bone}">${n}<br>${h.toUpperCase()}</div>`).join("");
+  document.getElementById("law").innerHTML = ROLES.map(([k,label,,meaning]) => `<div style="background:var(--${k})"><b>${P[k][1].toUpperCase()}</b><span>= ${meaning}</span></div>`).join("");
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  const box = document.getElementById('stage3d');
+  const canvas = document.getElementById('c3d');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!window.THREE) { box.insertAdjacentHTML('beforeend','<div class="fallback">Le prototype 3D n\'a pas pu charger.</div>'); return; }
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true}); }
+  catch(e){ box.insertAdjacentHTML('beforeend','<div class="fallback">WebGL indisponible sur cet appareil.</div>'); return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+
+  const scene = new THREE.Scene();
+  const C = k => hexToInt(window.PAL[k][0]);
+  scene.fog = new THREE.Fog(hexToInt(window.PAL.void2), 22, 44);
+  const camera = new THREE.PerspectiveCamera(32, 4/3, 0.1, 100);
+
+  const grad = new THREE.DataTexture(new Uint8Array([70,70,70,255, 165,165,165,255, 255,255,255,255]), 3, 1, THREE.RGBAFormat);
+  grad.minFilter = grad.magFilter = THREE.NearestFilter; grad.needsUpdate = true;
+  const INK = new THREE.MeshBasicMaterial({color:hexToInt(window.PAL.ink), side:THREE.BackSide});
+  const toon = (c, e) => new THREE.MeshToonMaterial({color:c, gradientMap:grad, emissive:e||0x000000});
+  const glow = c => new THREE.MeshBasicMaterial({color:c});
+
+  function part(geo, mat, o){
+    const g = new THREE.Group();
+    const m = new THREE.Mesh(geo, mat); g.add(m);
+    if (o !== 0){ const h = new THREE.Mesh(geo, INK); h.scale.setScalar(1 + (o||0.07)); g.add(h); g.userData.hull = h; }
+    g.userData.mesh = m;
+    return g;
+  }
+  function at(obj, x, y, z){ obj.position.set(x,y,z); return obj; }
+
+  scene.add(new THREE.AmbientLight(0x4a3a8a, 0.75));
+  const key = new THREE.DirectionalLight(0xffffff, 0.95); key.position.set(6,12,5); scene.add(key);
+  const rimG = new THREE.PointLight(C("power"), 2.2, 30); rimG.position.set(-7,4,-6); scene.add(rimG);
+  const rimM = new THREE.PointLight(C("combo"), 1.6, 30); rimM.position.set(7,3,-7); scene.add(rimM);
+
+  // Platform
+  const plat = new THREE.Group(); scene.add(plat);
+  plat.add(at(part(new THREE.CylinderGeometry(6,5.2,1,6), toon(new THREE.Color(window.PAL.void3).lerp(new THREE.Color(0x6a6a8a),0.25).getHex()), 0.02), 0,-0.5,0));
+  const rim = new THREE.Mesh(new THREE.CylinderGeometry(6.04,6.04,0.14,6,1,true), glow(C("power"))); rim.position.y = -0.05; plat.add(rim);
+  for (let i=0;i<3;i++){ const r = new THREE.Mesh(new THREE.RingGeometry(1.6+i*1.4,1.66+i*1.4,6), new THREE.MeshBasicMaterial({color:new THREE.Color(window.PAL.void3).lerp(new THREE.Color(window.PAL.fog),0.25).getHex(), side:THREE.DoubleSide})); r.rotation.x=-Math.PI/2; r.position.y=0.01; plat.add(r); }
+  const drips = [];
+  for (let i=0;i<9;i++){
+    const a = i/9*Math.PI*2 + 0.2, rr = 5.3;
+    const d = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.04,1,8), glow(C("power")));
+    d.position.set(Math.cos(a)*rr, -1.2, Math.sin(a)*rr); d.userData.ph = Math.random()*6; plat.add(d); drips.push(d);
+  }
+  const tele = new THREE.Mesh(new THREE.RingGeometry(0.9,1.25,32), new THREE.MeshBasicMaterial({color:C("danger"), transparent:true, side:THREE.DoubleSide}));
+  tele.rotation.x = -Math.PI/2; tele.position.set(-3,0.03,2.6); scene.add(tele);
+
+  // Hero (Armand)
+  const hero = new THREE.Group(); scene.add(hero);
+  const skin = toon(0xffc9a8), shirt = toon(0x2f7bff), pants = toon(0x1e2a78), hair = toon(0x4a2410), white = toon(0xffffff);
+  [-0.24,0.24].forEach(x => { hero.add(at(part(new THREE.CylinderGeometry(0.14,0.12,0.9,10), pants), x,0.45,0)); hero.add(at(part(new THREE.BoxGeometry(0.34,0.2,0.5), white), x,0.1,0.08)); });
+  hero.add(at(part(new THREE.CylinderGeometry(0.42,0.52,1.0,14), shirt), 0,1.4,0));
+  const head = new THREE.Group(); head.position.y = 2.65; hero.add(head);
+  const hd = part(new THREE.SphereGeometry(0.85,28,20), skin, 0.06); hd.scale.set(1,1.06,1); head.add(hd);
+  const hr = part(new THREE.SphereGeometry(0.9,28,16,0,Math.PI*2,0,Math.PI*0.48), hair, 0.05); hr.rotation.x = -0.35; head.add(hr);
+  [[-0.33,0.12],[0.33,0.08]].forEach(([x,y],i) => {
+    head.add(at(part(new THREE.SphereGeometry(0.3,20,14), white, 0.12), x,y+0.05,0.68));
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.055,10,8), glow(0x05030a)); p.position.set(x+(i?-0.06:0.07), y+0.07, 0.98); head.add(p);
+  });
+  const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.26,16,10), glow(0x05030a)); mouth.scale.set(1.2,0.55,0.4); mouth.position.set(0,-0.42,0.74); head.add(mouth);
+  const tongue = new THREE.Mesh(new THREE.SphereGeometry(0.12,12,8), toon(0xff5f8a)); tongue.scale.set(1,0.5,0.6); tongue.position.set(0.05,-0.5,0.84); head.add(tongue);
+  const armL = at(part(new THREE.CylinderGeometry(0.09,0.09,1.0,8), shirt), -0.6,1.5,0.2); armL.rotation.z = 0.9; hero.add(armL);
+  const armR = at(part(new THREE.CylinderGeometry(0.09,0.09,1.0,8), shirt), 0.6,1.5,0.2); armR.rotation.z = -0.9; hero.add(armR);
+
+  // Contrabass
+  const bass = new THREE.Group(); hero.add(bass);
+  const wood = toon(0xb5541c), dark = toon(0x2a140a);
+  const bb1 = part(new THREE.SphereGeometry(1,24,16), wood, 0.05); bb1.scale.set(0.8,1.05,0.32); bass.add(at(bb1,0,0,0));
+  const bb2 = part(new THREE.SphereGeometry(1,24,16), wood, 0.06); bb2.scale.set(0.6,0.62,0.3); bass.add(at(bb2,0,1.15,0));
+  bass.add(at(part(new THREE.BoxGeometry(0.18,2.0,0.14), dark), 0,2.4,0));
+  bass.add(at(part(new THREE.SphereGeometry(0.16,12,10), dark, 0.12), 0,3.45,0));
+  [-0.09,-0.03,0.03,0.09].forEach(x => { const s = new THREE.Mesh(new THREE.BoxGeometry(0.025,3.6,0.03), glow(C("ui"))); s.position.set(x,1.5,0.36); bass.add(s); });
+  bass.position.set(1.05,1.6,0.35); bass.rotation.z = -0.35; bass.scale.setScalar(0.95);
+
+  const trail = new THREE.Mesh(new THREE.RingGeometry(2.4,3.6,48,1,0,Math.PI*1.4), new THREE.MeshBasicMaterial({color:C("ui"), transparent:true, opacity:0, side:THREE.DoubleSide}));
+  trail.rotation.x = -Math.PI/2; trail.position.y = 1.4; scene.add(trail);
+
+  // Teachers
+  const teachers = [];
+  function makeTeacher(i){
+    const t = new THREE.Group();
+    const mats = { suit: toon(i%2?0x6b6a75:0x6e5e4e), face: toon(0xd9d4c7), tie: toon(C("danger")) };
+    t.add(at(part(new THREE.CylinderGeometry(0.4,0.48,1.2,12), mats.suit), 0,0.9,0));
+    t.add(at(part(new THREE.BoxGeometry(0.12,0.6,0.06), mats.tie, 0.2), 0,1.15,0.45));
+    const h = at(part(new THREE.SphereGeometry(0.58,20,14), mats.face, 0.07), 0,1.95,0); t.add(h);
+    if (i%3===0) t.add(at(part(new THREE.SphereGeometry(0.6,20,10,0,Math.PI*2,0,Math.PI*0.3), toon(0x9a9aa6), 0.05), 0,2.05,0));
+    [-0.2,0.2].forEach(x => {
+      const e = new THREE.Mesh(new THREE.SphereGeometry(0.1,10,8), glow(C("danger"))); e.position.set(x,2.0,0.5); t.add(e);
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.28,0.07,0.06), glow(0x05030a)); b.position.set(x,2.17,0.52); b.rotation.z = x<0?-0.45:0.45; t.add(b);
+    });
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.3,0.06,0.05), glow(0x05030a)); m.position.set(0,1.72,0.55); m.rotation.z = 0.15; t.add(m);
+    t.userData = { mats, a: i/6*Math.PI*2, r: 4.6, state:'walk', vel:new THREE.Vector3(), spin:0, flash:0, t:0 };
+    scene.add(t); teachers.push(t);
+  }
+  for (let i=0;i<6;i++) makeTeacher(i);
+
+  // Overlay pops
+  const pops = [];
+  function pop(text, cls, pos){
+    const el = document.createElement('span'); el.className = 'pop ' + (cls||''); el.textContent = text; box.appendChild(el);
+    pops.push({el, pos:pos.clone(), life:0});
+  }
+  const cmbN = document.getElementById('cmbN'), cmbD = document.getElementById('cmbD');
+  let combo = 0;
+  const dyn = c => c>=80?'fff':c>=50?'ff':c>=35?'f':c>=20?'mf':c>=10?'p':'pp';
+
+  function resize(){
+    const w = box.clientWidth, h = box.clientHeight;
+    renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(box); resize();
+
+  let last = performance.now(), time = 0, hitstop = 0, shake = 0, attackT = -1, nextAttack = 1.2, impact = 0;
+  const v = new THREE.Vector3();
+  function loop(now){
+    let dt = Math.min(0.05, (now-last)/1000); last = now;
+    if (hitstop > 0){ hitstop -= dt; dt = 0; }
+    time += dt;
+
+    const ang = time*0.18 + 0.6;
+    camera.position.set(Math.cos(ang)*17, 12.5, Math.sin(ang)*17);
+    if (shake > 0){ camera.position.x += (Math.random()-.5)*shake; camera.position.y += (Math.random()-.5)*shake; shake *= 0.86; if (shake<0.01) shake=0; }
+    camera.lookAt(0,1.3,0);
+
+    drips.forEach(d => { const s = 0.6 + 0.5*Math.sin(time*2 + d.userData.ph); d.scale.y = s; d.position.y = -0.9 - s*0.5; });
+    tele.material.opacity = 0.35 + 0.35*Math.sin(time*7);
+    tele.scale.setScalar(0.8 + 0.25*((time*0.8)%1));
+
+    hero.position.y = Math.abs(Math.sin(time*6))*0.08;
+    head.rotation.z = Math.sin(time*3)*0.06;
+
+    if (attackT < 0 && time > nextAttack){ attackT = 0; }
+    if (attackT >= 0){
+      attackT += dt;
+      const p = Math.min(1, attackT/0.42);
+      const e = 1 - Math.pow(1-p, 3);
+      hero.rotation.y = e*Math.PI*2;
+      bass.rotation.z = -0.35 - Math.sin(p*Math.PI)*1.1;
+      hero.scale.set(1+Math.sin(p*Math.PI)*0.12, 1-Math.sin(p*Math.PI)*0.1, 1+Math.sin(p*Math.PI)*0.12);
+      trail.material.opacity = Math.sin(p*Math.PI)*0.75;
+      trail.rotation.z = -hero.rotation.y;
+      if (p > 0.45 && !hero.userData.hit){
+        hero.userData.hit = true;
+        let hits = 0;
+        teachers.forEach(t => {
+          const u = t.userData; if (u.state !== 'walk' || u.r > 3.6) return;
+          hits++; combo++;
+          u.state = 'fly'; u.flash = 0.09; u.t = 0;
+          const out = new THREE.Vector3(Math.cos(u.a),0,Math.sin(u.a));
+          u.vel.copy(out.multiplyScalar(9 + Math.random()*3)); u.vel.y = 6 + Math.random()*3; u.spin = (Math.random()-.5)*14;
+          const crit = Math.random() < 0.25;
+          pop(crit ? '120 !' : '40', crit ? 'crit' : '', t.position.clone().add(new THREE.Vector3(0,2.8,0)));
+        });
+        if (hits){
+          hitstop = reduce ? 0 : (hits>2 ? 0.1 : 0.06);
+          shake = reduce ? 0 : 0.25 + hits*0.06;
+          if (hits >= 3 && !reduce){ impact = 2; }
+          cmbN.textContent = combo; cmbD.textContent = dyn(combo);
+          cmbN.animate([{transform:'scale(1.6) rotate(-10deg)'},{transform:'scale(1) rotate(-4deg)'}],{duration:220,easing:'cubic-bezier(.34,1.56,.64,1)'});
+        }
+      }
+      if (p >= 1){ attackT = -1; hero.userData.hit = false; hero.rotation.y = 0; hero.scale.set(1,1,1); trail.material.opacity = 0; nextAttack = time + 1.1 + Math.random()*0.6; }
+    }
+    if (impact > 0){ box.classList.add('impact'); impact--; } else box.classList.remove('impact');
+
+    teachers.forEach(t => {
+      const u = t.userData;
+      if (u.flash > 0){ u.flash -= dt; Object.values(u.mats).forEach(m => m.emissive.setHex(0xffffff)); }
+      else Object.values(u.mats).forEach(m => m.emissive.setHex(0x000000));
+      if (u.state === 'walk'){
+        u.r = Math.max(2.9, u.r - dt*0.9);
+        u.a += dt*0.15;
+        t.position.set(Math.cos(u.a)*u.r, Math.abs(Math.sin(time*8 + u.a*3))*0.15, Math.sin(u.a)*u.r);
+        t.lookAt(0, t.position.y, 0);
+      } else if (u.state === 'fly'){
+        u.t += dt;
+        u.vel.y -= 18*dt;
+        t.position.addScaledVector(u.vel, dt);
+        t.rotation.x += u.spin*dt; t.rotation.z += u.spin*0.7*dt;
+        if (!u.out && t.position.length() > 6.5){ u.out = true; pop('OUT !', 'out', t.position.clone().add(new THREE.Vector3(0,1,0))); }
+        if (u.t > 1.6){ u.state = 'drop'; u.out = false; u.a = Math.random()*Math.PI*2; u.r = 4.8; t.rotation.set(0,0,0); t.position.set(Math.cos(u.a)*u.r, 9, Math.sin(u.a)*u.r); u.vel.set(0,0,0); }
+      } else if (u.state === 'drop'){
+        u.vel.y -= 30*dt; t.position.y += u.vel.y*dt;
+        if (t.position.y <= 0){ t.position.y = 0; u.state = 'walk'; t.scale.set(1.25,0.75,1.25); }
+      }
+      t.scale.lerp(v.set(1,1,1), 0.15);
+    });
+
+    for (let i = pops.length-1; i >= 0; i--){
+      const p = pops[i]; p.life += dt; p.pos.y += dt*1.6;
+      const s = p.pos.clone().project(camera);
+      p.el.style.left = ((s.x+1)/2*box.clientWidth) + 'px';
+      p.el.style.top = ((1-s.y)/2*box.clientHeight) + 'px';
+      const k = p.life < 0.12 ? 1.6 - p.life*5 : 1;
+      p.el.style.transform = `translate(-50%,-50%) scale(${k})`;
+      p.el.style.opacity = p.life > 0.7 ? Math.max(0, 1-(p.life-0.7)*4) : 1;
+      if (p.life > 0.95){ p.el.remove(); pops.splice(i,1); }
+    }
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

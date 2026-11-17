@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stage preview</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #03111a; overflow: hidden; font-family: system-ui, sans-serif; }
+  #view { position: fixed; inset: 0; }
+  #hud { position: fixed; left: 12px; top: 10px; color: #e8fbff; font-size: 13px; text-shadow: 0 1px 0 #01060a; pointer-events: none; }
+  #hud b { color: #00ffd5; }
+</style>
+</head>
+<body>
+<div id="view"></div>
+<div id="hud"></div>
+<!-- Params: ?stage=1..7 &x=&z= (hero pos) &dark=0..1 &t=seconds &spin=1 (orbit camera) &dist=40 -->
+<script type="module" src="/game/stages/preview.ts"></script>
+</body>
+</html>

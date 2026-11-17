@@ -1,179 +1,116 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CharacterType, GameSettings, RunState, StageStats } from './types';
+import { CHARACTERS } from './types';
+import { GameView } from './components/GameView';
+import { Hud } from './components/Hud';
+import { OptionsScreen, PauseScreen, ResultScreen, SelectScreen, TitleScreen } from './components/Screens';
+import { createHudStore } from './game/core/hudStore';
+import { DEFAULT_KEYS } from './game/core/Input';
+import { MenuScene } from './game/MenuScene';
+import { getPortraits, Portraits } from './game/portraits';
+import { audio } from './game/audio/audio';
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { GameCanvas } from './components/GameCanvas';
-import { UIOverlay } from './components/UIOverlay';
-import { GameStateStatus, CharacterType, GameSettings } from './types';
-import { CONSTANTS } from './constants';
-import { setMasterVolume } from './services/audioService';
+type Screen = 'title' | 'select' | 'playing' | 'clear' | 'gameover' | 'victory';
+
+const DEFAULT_SETTINGS: GameSettings = { master: 0.7, music: 0.5, sfx: 0.8, shake: true, flashes: true, keys: DEFAULT_KEYS };
+
+const loadSettings = (): GameSettings => {
+  try {
+    const raw = localStorage.getItem('contrabass-settings');
+    if (raw) { const s = JSON.parse(raw); return { ...DEFAULT_SETTINGS, ...s, keys: { ...DEFAULT_KEYS, ...s.keys } }; }
+  } catch { /* storage unavailable */ }
+  return DEFAULT_SETTINGS;
+};
+
+const newRun = (character: CharacterType, stage = 1): RunState => ({ character, stage, lives: 5, score: 0, kills: 0, maxCombo: 0, time: 0 });
+
+const makeHud = (run: RunState) => createHudStore({
+  hero: run.character, stage: run.stage, lives: run.lives, maxLives: 5, score: run.score, combo: 0, comboTimer: 0, nuance: 0, special: 0,
+  kills: 0, quota: 1, bossActive: false, bossName: '', bossHp: 1, bossInvulnerable: false, banner: null, dialogue: null, cutin: null, bossIntro: null, hint: '', hurt: 0,
+});
+
+const params = new URLSearchParams(location.search);
 
 const App: React.FC = () => {
-  const [gameState, setGameState] = useState<GameStateStatus>(GameStateStatus.MENU);
-  const [score, setScore] = useState(0);
-  const [wave, setWave] = useState(1);
-  const [stage, setStage] = useState(1); // 1 = School, 2 = Mountain
-  const [playerLives, setPlayerLives] = useState(5);
-  const [killCount, setKillCount] = useState(0);
-  const [showBossIntro, setShowBossIntro] = useState(false);
-  const [showStageComplete, setShowStageComplete] = useState(false);
-  const [character, setCharacter] = useState<CharacterType>('armand');
-  
-  // Special Power Animation State
-  const [specialPowerName, setSpecialPowerName] = useState("");
-  const [showSpecialAnim, setShowSpecialAnim] = useState(false);
-  
-  // Settings
-  const [settings, setSettings] = useState<GameSettings>(CONSTANTS.DEFAULT_SETTINGS);
-  
-  // Debug / State Logic
-  const [spawnThreshold, setSpawnThreshold] = useState(CONSTANTS.BOSS.SPAWN_KILLS);
-  const [isDebugMode, setIsDebugMode] = useState(false);
+  const [screen, setScreen] = useState<Screen>('title');
+  const [settings, setSettings] = useState<GameSettings>(loadSettings);
+  const [selected, setSelected] = useState<CharacterType>('armand');
+  const [run, setRun] = useState<RunState>(() => newRun('armand'));
+  const [stageStart, setStageStart] = useState<RunState>(run);
+  const [stats, setStats] = useState<StageStats | null>(null);
+  const [gameKey, setGameKey] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [options, setOptions] = useState(false);
+  const [portraits, setPortraits] = useState<Portraits>({});
+  const hud = useMemo(() => makeHud(run), [gameKey]);
+  const menuHost = useRef<HTMLDivElement>(null);
+  const menuScene = useRef<MenuScene | null>(null);
 
-  // Pause
-  const [isPaused, setIsPaused] = useState(false);
-  
-  // Force remount of GameCanvas to reset WebGL context cleanly on new game
-  const [gameId, setGameId] = useState(0);
+  useEffect(() => { setPortraits(getPortraits()); }, []);
 
-  const startGame = useCallback((selectedChar: CharacterType) => {
-    setScore(0);
-    setWave(1);
-    setStage(1);
-    setPlayerLives(5);
-    setKillCount(0);
-    setShowBossIntro(false);
-    setShowStageComplete(false);
-    setCharacter(selectedChar);
-    setGameState(GameStateStatus.PLAYING);
-    setGameId(prev => prev + 1); // FORCE NEW GAME INSTANCE
-    
-    // Reset debug state
-    setSpawnThreshold(CONSTANTS.BOSS.SPAWN_KILLS);
-    setIsDebugMode(false);
-  }, []);
-
-  // Restart uses current character
-  const restartGame = useCallback(() => {
-    startGame(character);
-  }, [character, startGame]);
-
-  const handleGameOver = useCallback(() => {
-    setGameState(GameStateStatus.GAME_OVER);
-    setShowBossIntro(false);
-  }, []);
-
-  const handleLoseLife = useCallback(() => {
-    setPlayerLives(prev => {
-      const next = prev - 1;
-      if (next <= 0) handleGameOver();
-      return next;
-    });
-  }, [handleGameOver]);
-
-  const backToMenu = useCallback(() => {
-    setGameState(GameStateStatus.MENU);
-    setIsPaused(false);
-  }, []);
-
-  const togglePause = useCallback(() => {
-    setIsPaused(prev => !prev);
-  }, []);
-
-  const handleBossEnter = useCallback(() => {
-    setShowBossIntro(true);
-    setTimeout(() => setShowBossIntro(false), 3500);
-  }, []);
-
-  const handleStageAdvance = useCallback(() => {
-    setShowStageComplete(true);
-    setTimeout(() => {
-      setStage(prev => prev + 1);
-      setKillCount(0);
-      setGameId(prev => prev + 1);
-      setShowStageComplete(false);
-    }, 3000);
-  }, []);
-
-  const handleVictory = useCallback(() => {
-    setGameState(GameStateStatus.VICTORY);
-  }, []);
-
-  const handleSpecialUsed = useCallback((name: string) => {
-      setSpecialPowerName(name);
-      setShowSpecialAnim(true);
-      setTimeout(() => setShowSpecialAnim(false), 2000);
-  }, []);
-  
-  const handleDebug = useCallback(() => {
-      setIsDebugMode(prev => {
-          const next = !prev;
-          setSpawnThreshold(next ? 1 : CONSTANTS.BOSS.SPAWN_KILLS);
-          return next;
-      });
-  }, []);
-
-  const updateSettings = useCallback((newSettings: GameSettings) => {
-      setSettings(newSettings);
-      setMasterVolume(newSettings.volume);
-  }, []);
-
-  // Keyboard shortcuts
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-        if (gameState !== GameStateStatus.PLAYING) return;
-        if (e.key.toLowerCase() === 't') handleDebug();
-        if (e.key === 'Escape') { e.preventDefault(); togglePause(); }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleDebug, togglePause, gameState]);
+    audio.setVolumes(settings);
+    try { localStorage.setItem('contrabass-settings', JSON.stringify(settings)); } catch { /* ignore */ }
+  }, [settings]);
+
+  const inMenu = screen === 'title' || screen === 'select';
+  useEffect(() => {
+    if (!inMenu || !menuHost.current) return;
+    const m = new MenuScene(menuHost.current);
+    menuScene.current = m;
+    return () => { m.dispose(); menuScene.current = null; };
+  }, [inMenu]);
+  useEffect(() => { menuScene.current?.setMode(screen === 'select' ? 'select' : 'title'); }, [screen]);
+  useEffect(() => { menuScene.current?.setSelected(selected); }, [selected]);
+
+  const startStage = useCallback((r: RunState) => {
+    setRun(r);
+    setStageStart(r);
+    setStats(null);
+    setPaused(false);
+    setScreen('playing');
+    setGameKey((k) => k + 1);
+  }, []);
+
+  useEffect(() => {
+    const c = params.get('char') as CharacterType | null;
+    const st = parseInt(params.get('stage') ?? '', 10);
+    if (c && CHARACTERS.includes(c)) { audio.init(); startStage(newRun(c, st >= 1 && st <= 7 ? st : 1)); }
+  }, []);
+
+  const callbacks = useMemo(() => ({
+    onStageClear: (r: RunState, s: StageStats) => { setRun(r); setStats(s); setScreen('clear'); },
+    onGameOver: (r: RunState, s: StageStats) => { setRun(r); setStats(s); setScreen('gameover'); audio.music.play('gameover'); },
+    onVictory: (r: RunState, s: StageStats) => { setRun(r); setStats(s); setScreen('victory'); },
+    onPauseRequest: () => setPaused((p) => !p),
+  }), []);
+
+  const toTitle = () => { setPaused(false); setOptions(false); setScreen('title'); audio.music.play('menu'); };
 
   return (
-    <div className="relative w-full h-screen bg-gray-900 overflow-hidden">
-      {gameState !== GameStateStatus.MENU && (
-        <GameCanvas
-          key={gameId} // Unmount/Remount on restart
-          gameState={gameState}
-          character={character}
-          stage={stage}
-          spawnThreshold={spawnThreshold}
-          isDebugMode={isDebugMode}
-          isPaused={isPaused}
-          settings={settings}
-          setScore={setScore}
-          setWave={setWave}
-          setStage={setStage}
-          setKillCount={setKillCount}
-          onLoseLife={handleLoseLife}
-          onGameOver={handleGameOver}
-          onBossEnter={handleBossEnter}
-          onSpecialUsed={handleSpecialUsed}
-          onStageAdvance={handleStageAdvance}
-          onVictory={handleVictory}
-        />
+    <div className="app">
+      {inMenu && <div ref={menuHost} className="layer" />}
+      {screen === 'playing' && <GameView key={gameKey} run={run} settings={settings} paused={paused || options} hud={hud} callbacks={callbacks} />}
+      {screen === 'playing' && <Hud store={hud} portraits={portraits} settings={settings} />}
+
+      {screen === 'title' && <TitleScreen enabled={!options} onPlay={() => setScreen('select')} onOptions={() => setOptions(true)} />}
+      {screen === 'select' && (
+        <SelectScreen enabled={!options} selected={selected} setSelected={setSelected} portraits={portraits}
+          onBack={() => setScreen('title')}
+          onConfirm={() => { menuScene.current?.celebrate(); audio.init(); setTimeout(() => startStage(newRun(selected)), 450); }} />
       )}
-      
-      <UIOverlay
-        gameState={gameState}
-        score={score}
-        wave={wave}
-        stage={stage}
-        playerLives={playerLives}
-        killCount={killCount}
-        showBossIntro={showBossIntro}
-        showStageComplete={showStageComplete}
-        specialPowerName={specialPowerName}
-        showSpecialAnim={showSpecialAnim}
-        spawnThreshold={spawnThreshold}
-        isDebugMode={isDebugMode}
-        settings={settings}
-        isPaused={isPaused}
-        onTogglePause={togglePause}
-        onStart={startGame}
-        onRestart={restartGame}
-        onDebug={handleDebug}
-        onUpdateSettings={updateSettings}
-        onBackToMenu={backToMenu}
-      />
+      {screen === 'playing' && paused && !options && (
+        <PauseScreen enabled={!options} onResume={() => setPaused(false)} onOptions={() => setOptions(true)} onQuit={toTitle} />
+      )}
+      {(screen === 'clear' || screen === 'gameover' || screen === 'victory') && stats && (
+        <ResultScreen kind={screen} stats={stats} run={run}
+          onPrimary={() => {
+            if (screen === 'clear') startStage({ ...run, stage: run.stage + 1, lives: Math.min(5, run.lives + 1) });
+            else startStage({ ...stageStart, lives: 5 });
+          }}
+          onMenu={toTitle} />
+      )}
+      {options && <OptionsScreen settings={settings} onChange={setSettings} onClose={() => setOptions(false)} />}
     </div>
   );
 };

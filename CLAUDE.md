@@ -4,99 +4,64 @@ Guidance for Claude Code when working in this repository.
 
 ## The game
 
-**Contrabass Hero** is a frantic arena hack'n'slash in the browser. A band of young musicians fights hordes of conservatory teachers with their instruments, then a boss per stage. Tone: absurd family humour (fart clouds, chicken transformation, cat launcher, tactical nuke). Core loop: move, smash, knock enemies off a floating platform into the void, reach the kill threshold, beat the boss, next stage.
+**Contrabass Hero** is a frantic 3D arena hack'n'slash in the browser. A band of young musicians fights hordes of conservatory teachers pouring out of a dimensional rift, on a floating island over the void. Knock them off the edge, chain combos, reach the stage quota, beat the boss. 7 stages, 7 bosses, 6 playable heroes. Tone: sarcastic, teens/adults, cartoon (no blood: enemies burst into ink and sheet-music confetti). All player-facing text is French.
 
 ## Commands
 
 ```bash
-npm install        # dependencies
-npm run dev        # dev server on http://localhost:5555 (vite.config.ts)
-npm run build      # production build -> dist/
-npm run preview    # serve the build
+npm install
+npm run dev        # http://localhost:5555
+npm run build      # dist/
+npx tsc --noEmit -p .   # type check (no tests)
 ```
 
-No tests, no backend, no API key needed. `contentService.ts` returns hardcoded French insults/taunts (the old Gemini integration was removed; README is an AI Studio leftover).
+### Test URL parameters
 
-## Stack
+- `?char=swan&stage=3` start a run directly (skips menus)
+- `&quota=5` boss after 5 kills
+- `&debug=1` hero / camera readout
+- `&auto=1` the game plays itself (for headless screenshots)
+- `&ticks=60` run N simulation ticks per rendered frame (headless Chrome with SwiftShader is very slow)
+- `&bloom=0` disable bloom
 
-React 19 + Three.js 0.181 + Vite 6 + TypeScript. Tailwind comes from the CDN script in `index.html` (no Tailwind build). `index.html` also contains an AI Studio importmap that Vite ignores in practice; `/index.css` is referenced but does not exist.
+Headless screenshot: `"C:/Program Files/Google/Chrome/Application/chrome.exe" --headless=new --use-angle=swiftshader --enable-unsafe-swiftshader --window-size=960,540 --virtual-time-budget=60000 --screenshot=out.png "http://localhost:5555/?char=armand&auto=1&ticks=90"`.
 
 ## Architecture
 
-### State split: App vs GameCanvas
+React only renders UI; the game is a plain TypeScript engine in `game/`.
 
-- `App.tsx` owns React state: score, stage, lives (5), kill count, game phase, overlays (boss intro, stage complete, special name), settings, pause, debug.
-- `GameCanvas.tsx` owns everything Three.js through refs. It never re-renders reactively: props are mirrored into refs via `useEffect`, and data goes back up through setter callbacks (`setScore`, `setKillCount`, `onLoseLife`, `onBossEnter`, `onStageAdvance`...).
-- React state changes do NOT restart the loop. To reset (new game or new stage), `App` increments `gameId`, used as `key` on `<GameCanvas>` to remount it with a fresh WebGL context.
-- The whole game loop (`animate()`, `requestAnimationFrame`) lives in one large `useEffect` in `GameCanvas` (~1900 lines). Frame-based timers assume 60 fps.
-
-### Key files
-
-| File | Role |
+| Path | Role |
 |---|---|
-| `App.tsx` | Top-level state, lifecycle, keyboard shortcuts (`Esc` pause, `T` test mode) |
-| `components/GameCanvas.tsx` | Scene, loop, input, physics, combat, enemy + boss AI, specials, props, camera |
-| `components/UIOverlay.tsx` | All HTML UI: menu + character select, options/key rebinding, HUD, pause, game over, victory, overlays |
-| `services/assetFactory.ts` | Procedural textures drawn with Canvas 2D (no image files), incl. damaged prop states |
-| `services/audioService.ts` | Web Audio synthesized SFX (`playSound(type)`); `BACKGROUND_MUSIC_URL` is empty |
-| `services/contentService.ts` | Hardcoded French insults, boss taunts, boss death lines |
-| `constants.ts` | All tunables: speeds, damage, cooldowns, boss stats per boss, colors, default key bindings |
-| `types.ts` | Entities: Hero, Enemy (+ boss phases), Projectile, CarrotBomb, Prop, Particle, FloatingText |
+| `App.tsx` | Screens (title, select, playing, results), run state across stages, settings (localStorage), pause/options |
+| `components/GameView.tsx` | Mounts one `Game` per stage (remount via `key`) |
+| `components/Hud.tsx` | HUD, dialogue box, special cut-in, boss intro card, event banner; reads `hudStore` |
+| `components/Screens.tsx` | Title, character select, options/key rebinding, pause, results |
+| `components/useMenuNav.ts` | Keyboard + gamepad menu navigation |
+| `styles/game.css` | All UI styles (palette tokens) |
+| `game/Game.ts` | Orchestrator: fixed 60 Hz loop, combat resolution (`heroStrike`), combo/nuance/score, juice (hit-stop, shake, slow-mo, impact frames), stage flow horde → boss dialogue → boss → clear |
+| `game/core/` | `Input` (keyboard + gamepad + rumble), `CameraRig`, `Fx` (instanced particles, rings, slash arcs, decals, telegraphs, blob shadows), `Overlay` (DOM damage numbers and speech bubbles), `hudStore` |
+| `game/render/` | `toon.ts` (toon material with per-vertex emissive + hit flash, ink outline hull shader, neon material), `Pipeline.ts` (bloom + final pass: chromatic aberration, vignette, grain, hurt tint, blackout, impact invert) |
+| `game/models/` | `builder.ts` (procedural modeling: merge primitive parts into one vertex-colored geometry, rigs of named pivots), `heroes.ts` (6 heroes + instruments, lion, chicken, cat, egg, fart cloud) |
+| `game/entities/` | `Hero` (combo, heavy, dash, jump smash, procedural animation), `Enemies` (5 instanced archetypes, AI, spawn from the void, knock-off), `Projectiles`, `Specials`, `Pickups` |
+| `game/bosses/` | `Boss` base, `kit.ts` (ArenaBoss helpers, phase 2 at 50%), one file per boss |
+| `game/systems/` | `Director` (horde spawning), `Events` (6 surprise events), `Dialogue` (typewriter, blocking scenes, barks) |
+| `game/stages/` | 7 environments: floor textures, island, sky shader with the rift, distant decor, destructible props, lights |
+| `game/audio/audio.ts` | Fully synthesized SFX and adaptive procedural music (intensity follows the combo nuance) |
+| `game/data/dialogues.ts` | All French text: stage intros, boss scenes, barks, taunts, events, report-card lines |
+| `game/MenuScene.ts`, `game/portraits.ts` | 3D menu backdrop; hero/boss portraits rendered once to PNG data URLs |
 
-### Rendering (current)
+Key rules:
+- No image or audio files: every model, texture and sound is generated in code.
+- Models are built from primitives (`builder.ts`); emissive parts use `glow >= 1.5` to bloom (bloom threshold 1.15, linear HDR).
+- Enemies are `InstancedMesh` per archetype (one draw call + one outline each); per-instance hit flash via the `iFlash` attribute.
+- Gameplay timers are in seconds with a fixed 1/60 tick.
+- Every damaging boss attack is telegraphed with `fx.telegraphCircle/Rect`.
 
-Everything is a `THREE.Sprite` (billboard) with a `NearestFilter` canvas texture: pixel-art 2.5D. Fixed perspective camera at offset `(24, 32, 24)` lerping toward the hero; screen shake via `traumaRef`; hit-stop via `hitStopRef`. Movement input is rotated for the isometric view (up = -x -z).
+## Art direction
 
-### Frame flow in `animate()`
-
-1. Hit-stop / pause check
-2. Special power timers
-3. Input -> hero velocity -> position, jump, gravity, fall into void (lose a life, respawn with 2s invincibility)
-4. Hero vs destructible props (3 hits to destroy)
-5. Attack -> radial hit (`ATTACK_RANGE`), 40 dmg, knockback, shake, hit-stop
-6. Enemy AI: chase, contact damage (1s invincibility), speech bubbles, boss phase machines
-7. Deaths -> kill counter -> boss spawn at `spawnThreshold` (15, or 1 in test mode)
-8. Spawn timer (1 teacher / 60 frames when no boss)
-9. Projectiles, particles, floating texts
-10. Camera follow + shake, render
-
-### Characters and specials (`E` / `Enter`)
-
-| Hero | Instrument | Special |
-|---|---|---|
-| Armand | contrabass | Bow spin: bounces around the arena |
-| Adrien | drums | Lion roar: AoE knockback |
-| Eliot | guitar | Gas attack: fart clouds that contaminate enemies |
-| Swan | piano | Cat launch: homing cat projectile |
-| Pierre | harpsichord | Tactical nuke: kills all regular enemies |
-| Audrey | vocals (note) | Chicken mode |
-
-### Stages and bosses
-
-| # | Stage | Boss | Mechanic |
-|---|---|---|---|
-| 1 | School | Le Directeur | Heavy chaser |
-| 2 | Mountain | L'Aigle | Fast |
-| 3 | Garden | Kawik (guinea pig) | Tank |
-| 4 | Desert | Tatoo (armadillo) | Shell phase: rolling, invulnerable |
-| 5 | Volcano | La Taupe (mole) | Burrow phase: invulnerable, lava projectiles |
-| 6 | Enchanted garden | Ninja Pain (rabbit) | Jumps, carrot bombs + lightning, phase 2 under 50% HP |
-| 7 | Jungle | Le Serpent | Constricts the hero: 3 jumps to escape |
-
-Boss spawn clears regular enemies. Killing the boss shows "STAGE COMPLETE" and remounts the canvas on the next stage; after stage 7 -> victory.
-
-### Known issues
-
-- Victory screen says "all 5 stages" (there are 7).
-- Character colors in `UIOverlay` use dynamic Tailwind classes (`border-${color}-500`), which only work because Tailwind runs from the CDN.
-- `migrated_prompt_history/` files have colons in their names and cannot be checked out on Windows (AI Studio history, not game code).
-
-## Redesign in progress
-
-Target art direction (3D toon shading, ink outlines, neon, frantic hack'n'slash): https://claude.ai/artifact/Acw5UoV5fou8kAqcfCzFFV. Color semantics are strict: green = helps the player, cyan = UI, magenta = combo, yellow = reward, red-orange = danger/enemies only.
+`design/bible-visuelle.html` and `design/palettes.html` (served by Vite). Chosen palette: **Plasma froid** (`game/palette.ts`). Color roles are strict: power turquoise = helps the player / the rift, ui blue, combo pink, reward gold, danger orange = enemies, telegraphs and damage taken only. `design/stage-preview.html?stage=N` previews a stage.
 
 ## Conventions
 
-- Code and identifiers in English, player-facing text in French.
-- All tunable numbers go in `constants.ts`.
-- No image or audio files so far: assets are generated in code.
+- Code in English, player-facing text in French.
+- `migrated_prompt_history/` (AI Studio leftovers) has colons in file names and cannot be checked out on Windows.
