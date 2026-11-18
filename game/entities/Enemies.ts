@@ -4,7 +4,7 @@ import { PAL } from '../palette';
 import { makeOutlineMaterial, makeToonMaterial, hullGeometry } from '../render/toon';
 import { ENEMY_CAP, ENEMY_GEOS, ENEMY_STATS, EnemyKind } from './enemyModels';
 import { audio } from '../audio/audio';
-import { TEACHER_BARKS } from '../data/dialogues';
+import { TEACHER_BARKS, TEACHER_CUT, TEACHER_REACT } from '../data/dialogues';
 import { inQuad, outQuad } from '../core/anim';
 
 export type EnemyState = 'spawn' | 'chase' | 'windup' | 'lunge' | 'recover' | 'stun' | 'air' | 'fall' | 'dying' | 'flat' | 'stake';
@@ -41,6 +41,7 @@ export interface Enemy {
   lungeDir: THREE.Vector3;
   killStyle: KillStyle;
   credited: boolean;
+  bubble: number;
 }
 
 export interface HitInfo {
@@ -63,7 +64,7 @@ const v2 = new THREE.Vector3();
 const KINDS: EnemyKind[] = ['solfege', 'surveillant', 'maths', 'cpe', 'inspecteur'];
 const GRAV = 38;
 
-interface Batch { mesh: THREE.InstancedMesh; hull: THREE.InstancedMesh; flash: THREE.InstancedBufferAttribute; free: number[]; used: number }
+interface Batch { mesh: THREE.InstancedMesh; hull: THREE.InstancedMesh; flash: THREE.InstancedBufferAttribute; ink: THREE.InstancedBufferAttribute; free: number[]; used: number }
 
 export class Enemies {
   list: Enemy[] = [];
@@ -72,6 +73,7 @@ export class Enemies {
   private nextId = 1;
   private barkCd = 3;
   private auras: THREE.Mesh[] = [];
+  private marks: THREE.Sprite[] = [];
   freeze = false;
   private lastBlockPop = -1;
 
@@ -84,6 +86,9 @@ export class Enemies {
       const flash = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1);
       flash.setUsage(THREE.DynamicDrawUsage);
       geo.setAttribute('iFlash', flash);
+      const ink = new THREE.InstancedBufferAttribute(new Float32Array(cap), 1);
+      ink.setUsage(THREE.DynamicDrawUsage);
+      geo.setAttribute('iInk', ink);
       const mesh = new THREE.InstancedMesh(geo, mat, cap);
       const hull = new THREE.InstancedMesh(hullGeometry(geo), outline, cap);
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -92,7 +97,24 @@ export class Enemies {
       tmpO.scale.setScalar(0); tmpO.updateMatrix();
       for (let i = 0; i < cap; i++) mesh.setMatrixAt(i, tmpO.matrix);
       this.group.add(mesh, hull);
-      this.batches[k] = { mesh, hull, flash, free: Array.from({ length: cap }, (_, i) => cap - 1 - i), used: 0 };
+      this.batches[k] = { mesh, hull, flash, ink, free: Array.from({ length: cap }, (_, i) => cap - 1 - i), used: 0 };
+    }
+    const markTex = (() => {
+      const c = document.createElement('canvas');
+      c.width = c.height = 128;
+      const ctx = c.getContext('2d')!;
+      ctx.font = '110px "Luckiest Guy", Impact, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.lineWidth = 16; ctx.strokeStyle = '#01060a'; ctx.strokeText('!', 64, 70);
+      ctx.fillStyle = '#ffffff'; ctx.fillText('!', 64, 70);
+      return new THREE.CanvasTexture(c);
+    })();
+    for (let i = 0; i < 14; i++) {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: markTex, color: new THREE.Color(PAL.danger).multiplyScalar(2.2), toneMapped: false, depthTest: false, transparent: true }));
+      s.visible = false;
+      s.renderOrder = 10;
+      this.marks.push(s);
+      this.group.add(s);
     }
     const auraGeo = new THREE.RingGeometry(0.9, 1, 48).rotateX(-Math.PI / 2);
     for (let i = 0; i < ENEMY_CAP.inspecteur; i++) {
@@ -111,14 +133,14 @@ export class Enemies {
     if (slot === undefined) return null;
     b.used++;
     const s = ENEMY_STATS[kind];
-    const hpMul = (mutant ? 2.5 : 1) * this.game.difficulty;
+    const hpMul = (mutant ? 2.5 : 1) * this.game.difficulty * this.game.diff.enemyHp;
     const e: Enemy = {
       id: this.nextId++, kind, slot, alive: true,
       pos: at.clone().setY(0), vel: new THREE.Vector3(), y: 0, vy: 0,
       hp: s.hp * hpMul, maxHp: s.hp * hpMul, radius: s.radius * (mutant ? 1.35 : 1), mass: s.mass * (mutant ? 1.8 : 1),
       state: 'spawn', t: 0, flash: 0, facing: Math.atan2(-at.x, -at.z), phase: Math.random() * 10,
-      hitTags: new Map(), cd: 1 + Math.random() * 1.5, mutant, scaleMul: mutant ? 1.35 : 1, buffed: false,
-      dotTimer: 0, contaminated: 0, squash: -0.3, sqv: 0, spin: 0, lungeDir: new THREE.Vector3(), killStyle: 'pop', credited: false,
+      hitTags: new Map(), cd: (1 + Math.random() * 1.5) * this.game.diff.enemyCooldown, mutant, scaleMul: mutant ? 1.35 : 1, buffed: false,
+      dotTimer: 0, contaminated: 0, squash: -0.3, sqv: 0, spin: 0, lungeDir: new THREE.Vector3(), killStyle: 'pop', credited: false, bubble: 0,
     };
     if (mode === 'edge') {
       e.y = -5; e.vy = 17; e.squash = -0.5;
@@ -192,6 +214,7 @@ export class Enemies {
       if (!h.quiet) audio.play('shieldHit');
       this.game.fx.burst(head, PAL.bone, 6, 8, { size: 0.25, life: 0.25 });
     } else if (!h.quiet) {
+      this.game.fx.inkSpray(head, h.dir.lengthSq() > 0.01 ? h.dir : v1.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(), h.crit || h.launch ? 1.6 : 1);
       if (h.crit || dmg >= 60) this.game.overlay.pop(String(Math.round(dmg)), head, h.crit ? 'crit' : 'dmg');
       this.game.fx.burst(head, h.color ?? PAL.bone, h.crit ? 14 : 7, h.crit ? 16 : 11, { size: 0.3, life: 0.3, up: 0.9 });
     }
@@ -200,9 +223,25 @@ export class Enemies {
     return true;
   }
 
+  private lastReact = 0;
+
   private credit(e: Enemy, out: boolean) {
     if (e.credited) return;
     e.credited = true;
+    if (e.bubble) { this.game.overlay.cut(e.bubble, out ? 'OUT !' : 'SPLOTCH'); e.bubble = 0; }
+    if (this.game.time - this.lastReact > 2.5 && Math.random() < 0.3) {
+      let w: Enemy | null = null, bd = 196;
+      for (const o of this.list) {
+        if (o === e || !o.alive || o.bubble || o.state !== 'chase') continue;
+        const d = o.pos.distanceToSquared(e.pos);
+        if (d < bd) { bd = d; w = o; }
+      }
+      if (w) {
+        const witness = w;
+        this.lastReact = this.game.time;
+        witness.bubble = this.game.overlay.bubble(TEACHER_REACT[Math.floor(Math.random() * TEACHER_REACT.length)], () => (witness.alive ? this.headPos(witness, new THREE.Vector3()) : null), 1.6, 'enemy', 30);
+      }
+    }
     this.game.onEnemyKilled(e, out);
   }
 
@@ -288,7 +327,7 @@ export class Enemies {
         }
       }
       e.buffed = inspectors.some((i) => i !== e && i.pos.distanceToSquared(e.pos) < 49);
-      const speedMul = (e.buffed ? 1.3 : 1) * g.enemySpeedMul;
+      const speedMul = (e.buffed ? 1.3 : 1) * g.enemySpeedMul * g.diff.enemySpeed;
       const s = ENEMY_STATS[e.kind];
       const toHero = v1.subVectors(hero.pos, e.pos).setY(0);
       const dist = toHero.length();
@@ -324,17 +363,21 @@ export class Enemies {
           const nx = e.pos.x + e.vel.x * dt, nz = e.pos.z + e.vel.z * dt;
           if (Math.hypot(nx, nz) > R - 1.2) { e.vel.x *= 0.2; e.vel.z *= 0.2; e.vel.addScaledVector(v2.set(-e.pos.x, 0, -e.pos.z).normalize(), 2); }
           if (dist > 0.1) e.facing = Math.atan2(hero.pos.x - e.pos.x, hero.pos.z - e.pos.z);
-          if (this.barkCd <= 0 && dist < 18 && Math.random() < 0.02 && g.overlay.activeBubbles() < 2) {
-            this.barkCd = 3.5 + Math.random() * 3;
-            const lines = TEACHER_BARKS[e.kind];
-            g.overlay.bubble(lines[Math.floor(Math.random() * lines.length)], () => (e.alive ? this.headPos(e, new THREE.Vector3()) : null), 2.2, 'enemy');
+          if (this.barkCd <= 0 && dist < 17 && !e.bubble && Math.random() < 0.06 && g.overlay.activeBubbles() < 3) {
+            this.barkCd = 0.9 + Math.random() * 1.4;
+            const stem = Math.random() < 0.4;
+            const lines = stem ? TEACHER_CUT : TEACHER_BARKS[e.kind];
+            const text = lines[Math.floor(Math.random() * lines.length)] + (stem ? '…' : '');
+            e.bubble = g.overlay.bubble(text, () => (e.alive ? this.headPos(e, new THREE.Vector3()) : null), stem ? 1.4 : 1.8, 'enemy', stem ? 16 : 30);
+            if (e.bubble) audio.play('typewriter', { pitch: e.kind === 'surveillant' ? 1.4 : 0.55, volume: 0.6 });
           }
+          if (e.bubble && !g.overlay.isActive(e.bubble)) e.bubble = 0;
           break;
         }
         case 'windup': {
           e.vel.multiplyScalar(Math.pow(0.001, dt));
           e.facing = Math.atan2(hero.pos.x - e.pos.x, hero.pos.z - e.pos.z);
-          const wind = e.kind === 'maths' ? 0.55 : e.kind === 'cpe' ? 0.6 : 0.42;
+          const wind = (e.kind === 'maths' ? 0.55 : e.kind === 'cpe' ? 0.6 : 0.42) * g.diff.enemyWindup;
           if (e.t < dt * 1.5) g.fx.burst(this.headPos(e, v2), PAL.danger, 4, 3, { size: 0.3, life: 0.3, grav: 0 });
           e.squash += (0.32 * outQuad(e.t / wind) - e.squash) * Math.min(1, dt * 20);
           e.sqv = 0;
@@ -345,7 +388,7 @@ export class Enemies {
               const lead = hero.pos.clone().addScaledVector(hero.vel, 0.35).setY(1.4);
               g.projectiles.enemyShot('chalk', from, lead.sub(from).normalize().multiplyScalar(24), 1);
               audio.play('chalkThrow');
-              e.state = 'recover'; e.t = 0; e.cd = 2.2 + Math.random() * 1.5;
+              e.state = 'recover'; e.t = 0; e.cd = (2.2 + Math.random() * 1.5) * g.diff.enemyCooldown;
             } else {
               e.state = 'lunge'; e.t = 0;
               e.lungeDir.copy(toHero).normalize();
@@ -358,7 +401,7 @@ export class Enemies {
         }
         case 'lunge':
           if (dist < e.radius + 1.0 && !hero.dead) hero.hurt(e.pos, e.kind === 'cpe' ? 1 : 1);
-          if (e.t > 0.2) { e.state = 'recover'; e.t = 0; e.cd = 1.2 + Math.random() * 1.2; }
+          if (e.t > 0.2) { e.state = 'recover'; e.t = 0; e.cd = (1.2 + Math.random() * 1.2) * g.diff.enemyCooldown; }
           break;
         case 'recover':
           e.vel.multiplyScalar(Math.pow(0.0005, dt));
@@ -493,12 +536,25 @@ export class Enemies {
       b.mesh.setMatrixAt(e.slot, tmpO.matrix);
       const pulse = e.state === 'windup' ? 0.25 + 0.25 * Math.sin(e.t * 30) : 0;
       b.flash.setX(e.slot, Math.max(e.flash, pulse, e.state === 'dying' ? 1 : 0));
+      b.ink.setX(e.slot, Math.min(0.8, Math.max(0, 1 - e.hp / e.maxHp) * 0.9 + (e.state === 'flat' || e.state === 'stake' ? 0.5 : 0)));
     }
     for (const k of KINDS) {
       const b = this.batches[k];
       b.mesh.instanceMatrix.needsUpdate = true;
       b.flash.needsUpdate = true;
+      b.ink.needsUpdate = true;
     }
+    let m = 0;
+    for (const e of this.list) {
+      if (m >= this.marks.length) break;
+      if (e.state !== 'windup' || e.kind === 'maths') continue;
+      const s = this.marks[m++];
+      s.visible = true;
+      const k = 1.3 + Math.sin(e.t * 30) * 0.2;
+      s.position.set(e.pos.x, e.y + ENEMY_STATS[e.kind].height * e.scaleMul + 1.6, e.pos.z);
+      s.scale.set(k, k, k);
+    }
+    for (; m < this.marks.length; m++) this.marks[m].visible = false;
     this.auras.forEach((a, i) => {
       const e = inspectors[i];
       a.visible = !!e;
@@ -508,6 +564,17 @@ export class Enemies {
         a.scale.set(s, 1, s);
       }
     });
+  }
+
+  // Closest teacher about to strike the hero (melee windup or lunge), for counters.
+  findThreat(p: THREE.Vector3, range: number): Enemy | null {
+    let best: Enemy | null = null, bd = range * range;
+    for (const e of this.list) {
+      if (!e.alive || e.kind === 'maths' || (e.state !== 'windup' && e.state !== 'lunge')) continue;
+      const d = e.pos.distanceToSquared(p);
+      if (d < bd) { bd = d; best = e; }
+    }
+    return best;
   }
 
   // Rewrite instance matrices without simulating (used while the world is frozen, e.g. Finales).

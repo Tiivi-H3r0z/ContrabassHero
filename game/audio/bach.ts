@@ -113,24 +113,60 @@ interface Bar {
   crash: boolean;
 }
 
-interface Lv { bass: number; drums: number; gtr: number; org: number; choir: number; drone: number; flute: number }
+interface Lv { bass: number; hook: number; sub: number; drums: number; pad: number; gtr: number; riser: number; lead: number; org: number; choir: number; drone: number; flute: number }
+
+interface HookNote { i: number; nb: number; s: number; l: number }
 
 interface Song {
   id: BachTrackId;
   bpm: number;
-  res: 1 | 2; // drum grid: 1 = 16ths, 2 = 8ths
-  half: boolean; // half-time drum feel
+  res: 1 | 2; // grid for the arpeggiated bass / double-time bursts: 1 = 16ths, 2 = 8ths
+  half: boolean; // half-time clap (menu)
   phrase: number;
-  bassPat: string; // r=root o=octave f=fifth t=third
+  bassArp: string; // 16 steps: r=root o=octave f=fifth t=third .=rest
   gtr: string[]; // guitar rhythm for levels 3,4,5,6 — X=open chord, p=palm mute, -=hold
   lh: 'oct' | 'walk' | 'none';
-  org: 'stab' | 'pad';
   flute: boolean;
-  drone: number;
+  drone: number; // distorted guitar drone (menu)
+  tonic: number; // sub drone midi
+  scale: number[]; // key pitch classes (hook neighbour tones)
+  hook: HookNote[]; // 1-bar ostinato in chord-tone indices
+  hookBase: number;
+  hookVel: number;
+  hookGrit: number;
+  pump: number; // sidechain floor multiplier (1 = full depth)
+  kickVel: number;
   harpVel: number;
   lv: Lv;
   intro: Bar[];
   loop: Bar[];
+}
+
+/** hook grammar: "i@step:len", i = chord-tone index from hookBase, suffix n/u = scale neighbour below/above */
+function H(spec: string): HookNote[] {
+  return spec.trim().split(/\s+/).map((tok) => {
+    const m = /^(-?\d+)([nu]?)@([\d.]+):([\d.]+)$/.exec(tok);
+    if (!m) return { i: 0, nb: 0, s: 0, l: 1 };
+    return { i: Number(m[1]), nb: m[2] === 'n' ? -1 : m[2] === 'u' ? 1 : 0, s: Number(m[3]), l: Number(m[4]) };
+  });
+}
+
+const sc = (root: number, steps: number[]) => steps.map((x) => (root + x) % 12);
+const HARM = [0, 2, 3, 5, 7, 8, 11];
+const MAJ = [0, 2, 4, 5, 7, 9, 11];
+
+function hookPitch(h: HookNote, c: Chord, base: number, scale: number[]): number {
+  const pcs = c.iv.map((i) => (c.r + i) % 12);
+  const tones: number[] = [];
+  for (let m = base - 24; m < base + 36; m++) if (pcs.includes(m % 12)) tones.push(m);
+  const i0 = tones.findIndex((m) => m >= base);
+  let m = tones[clamp(i0 + h.i, 0, tones.length - 1)];
+  if (h.nb) {
+    let k = m + h.nb;
+    while (!scale.includes(((k % 12) + 12) % 12) && Math.abs(k - m) < 3) k += h.nb;
+    m = k;
+  }
+  return m;
 }
 
 function bucket<T>(items: T[] | undefined, len: number, at: (x: T) => number): T[][] | null {
@@ -166,7 +202,7 @@ function mk(s: BarSpec, def = 'gbdocl'): Bar {
   };
 }
 
-const LV: Lv = { bass: 1, drums: 2, gtr: 3, org: 4, choir: 5, drone: 9, flute: 2 };
+const LV: Lv = { bass: 1, hook: 1, sub: 1, drums: 2, pad: 2, gtr: 3, riser: 2, lead: 4, org: 4, choir: 5, drone: 9, flute: 2 };
 
 // ---------- 1. Toccata BWV 565 ----------
 
@@ -187,9 +223,11 @@ const sweep = (tones: string) => {
 
 const TOCCATA: Song = {
   id: 'toccata', bpm: 180, res: 1, half: false, phrase: 4,
-  bassPat: 'r.r.r.r.r.r.r.o.',
+  bassArp: 'rrorrrorrrorrfro',
   gtr: ['X-p-p-p-X-p-p-p-', 'X-ppX-ppX-ppX-pp', 'XpppXpppXpppXppp', 'Xppppppppppppppp'],
-  lh: 'oct', org: 'stab', flute: false, drone: 0, harpVel: 0.2, lv: LV,
+  lh: 'oct', flute: false, drone: 0, tonic: 26, scale: sc(2, HARM), hookBase: 69, hookVel: 0.17, hookGrit: 1, pump: 1, kickVel: 1,
+  hook: H('3@0:1 3n@1:1 3@2:4 2@6:1 2n@7:1 1@8:1 1n@9:1 1@10:2 0@12:1 1@13:1 2@14:1 1@15:1'),
+  harpVel: 0.2, lv: LV,
   intro: [
     mk({ len: 20, bpm: 76, ch: ['A7', 'Dm'], hi: dbl(TOC_STMT), riff: oct(TOC_STMT, -36), bass: N('A1@0:6 A1@8:4 D2@12:8'),
       org: dbl(TOC_STMT).concat(N('A2@0:6 D2@12:8')), choir: STMT_CHOIR, hits: STMT_HITS }, ''),
@@ -269,9 +307,11 @@ function preludeBar([v, c]: [string, string]): Bar {
 
 const PRELUDE: Song = {
   id: 'prelude', bpm: 240, res: 2, half: false, phrase: 4,
-  bassPat: 'r-------r-------',
+  bassArp: 'r.o.r.o.r.o.f.o.',
   gtr: ['X-------X-------', 'X-p-p-p-X-p-p-p-', 'X-p-p-p-X-p-X-p-', 'XpppXpppXpppXppp'],
-  lh: 'none', org: 'stab', flute: false, drone: 0, harpVel: 0.17, lv: LV,
+  lh: 'none', flute: false, drone: 0, tonic: 24, scale: sc(0, MAJ), hookBase: 72, hookVel: 0.13, hookGrit: 1, pump: 1, kickVel: 1,
+  hook: H('0@0:1 1@1:1 2@2:1 3@3:1 4@4:2 3@6:1 2@7:1 3@8:1 4@9:1 5@10:2 4@12:1 3@13:1 2@14:2'),
+  harpVel: 0.17, lv: LV,
   intro: [],
   loop: PRE_BARS.map(preludeBar),
 };
@@ -286,9 +326,11 @@ const BOU_3 = N('B4@0:4 A4@4:2 G4@6:2 F#4@8:4 G4@12:2 A4@14:2');
 
 const BOURREE: Song = {
   id: 'bourree', bpm: 160, res: 1, half: false, phrase: 4,
-  bassPat: 'r---f---r---f---',
+  bassArp: 'rrorrfrorrorrfro',
   gtr: ['X--pp-p-X--pp-p-', 'X-ppX-ppX-ppX-pp', 'XpppX-p-XpppX-p-', 'Xppppppppppppppp'],
-  lh: 'walk', org: 'stab', flute: false, drone: 0, harpVel: 0.21, lv: LV,
+  lh: 'walk', flute: false, drone: 0, tonic: 28, scale: sc(4, HARM), hookBase: 74, hookVel: 0.16, hookGrit: 1, pump: 1, kickVel: 1,
+  hook: H('1@0:4 1n@4:2 0@6:2 0@8:4 0u@12:2 1@14:2'),
+  harpVel: 0.21, lv: LV,
   intro: [mk({ len: 4, ch: ['Em'], hi: N('E5@0:2 F#5@2:2'), hits: [[0, 't'], [1, 't'], [2, 'm'], [3, 'l']] }, '')],
   loop: [
     mk({ ch: ['Em', 'B7'], hi: BOU_1 }),
@@ -318,9 +360,11 @@ const BAD_MOTIF_BM = 'D6@0:1 B5@1:1 F#5@2:2 B5@4:1 F#5@5:1 D5@6:2';
 
 const BADINERIE: Song = {
   id: 'badinerie', bpm: 200, res: 1, half: false, phrase: 4,
-  bassPat: 'r-o-r-o-r-o-r-o-',
+  bassArp: 'rrorrrorrrorrfro',
   gtr: ['X-p-p-p-X-p-p-p-', 'X-ppX-ppX-ppX-pp', 'XpppXpppXpppXppp', 'Xppppppppppppppp'],
-  lh: 'oct', org: 'stab', flute: true, drone: 0, harpVel: 0.19, lv: LV,
+  lh: 'oct', flute: true, drone: 0, tonic: 35, scale: sc(11, HARM), hookBase: 71, hookVel: 0.15, hookGrit: 1, pump: 1, kickVel: 1,
+  hook: H('4@0:1 3@1:1 2@2:2 3@4:1 2@5:1 1@6:2 2@8:1 1@9:1 0@10:2 1@12:1 0@13:1 -1@14:2'),
+  harpVel: 0.19, lv: LV,
   intro: [mk({ len: 4, ch: ['F#7'], hi: N('B5@2:2'), hits: [[0, 's'], [1, 's'], [2, 's'], [3, 's']] }, '')],
   loop: [
     mk({ ch: ['Bm'], hi: N(`${BAD_MOTIF_BM} F#5@8:1 D5@9:1 B4@10:2 F#4@12:4`) }),
@@ -348,10 +392,12 @@ function menuBar(chs: string[]): Bar {
 
 const MENU: Song = {
   id: 'menu', bpm: 60, res: 1, half: true, phrase: 4,
-  bassPat: 'r---r---r---r---',
+  bassArp: 'r.o.r.o.r.o.r.o.',
   gtr: ['X---X---X---X---', 'X-p-X-p-X-p-X-p-', 'XpppXpppXpppXppp', 'pppppppppppppppp'],
-  lh: 'oct', org: 'pad', flute: false, drone: 38, harpVel: 0.14,
-  lv: { bass: 2, drums: 4, gtr: 3, org: 1, choir: 5, drone: 1, flute: 9 },
+  lh: 'oct', flute: false, drone: 38, tonic: 26, scale: sc(2, HARM), hookBase: 62, hookVel: 0.1, hookGrit: 0.3, pump: 0.6, kickVel: 0.55,
+  hook: H('3@0:2 2@2:2 3@4:2 1@6:2 3@8:2 2@10:2 3@12:2 0@14:2'),
+  harpVel: 0.14,
+  lv: { bass: 2, hook: 1, sub: 1, drums: 2, pad: 1, gtr: 4, riser: 3, lead: 9, org: 2, choir: 5, drone: 1, flute: 9 },
   intro: [],
   loop: [
     menuBar(['D', 'A/C#', 'Bm', 'Bm/A']),
@@ -368,34 +414,17 @@ const MENU: Song = {
 
 const SONGS: Record<BachTrackId, Song> = { toccata: TOCCATA, prelude: PRELUDE, bourree: BOURREE, badinerie: BADINERIE, menu: MENU };
 
-// drum grids [kick, snare, hat, china]
-const DR: Record<string, string[]> = {
-  l2: ['x.......x.......', '....x.......x...', 'x.x.x.x.x.x.x.x.', ''],
-  l3a: ['x..x....x.x.....', '....x.......x...', 'x.x.x.x.x.x.x.x.', ''],
-  l3b: ['x.....x.x.......', '....x.......x...', 'x.x.x.x.x.x.x.x.', ''],
-  l4a: ['xxxxxxxxxxxxxxxx', '....x.......x...', 'x...x...x...x...', ''],
-  l4b: ['x.x.x.x.x.x.x.x.', '....x.......x...', 'x...x...x...x...', ''],
-  l5a: ['xxxxxxxxxxxxxxxx', '....x.......x...', 'x.x.x.x.x.x.x.x.', '........x.......'],
-  l5b: ['x.x.x.x.x.x.x.x.', '....x.......x...', 'x.x.x.x.x.x.x.x.', '........x.......'],
-  h2: ['x...............', '........x.......', 'x...x...x...x...', ''],
-  h3: ['x.....x.x.......', '........x.......', 'x.x.x.x.x.x.x.x.', ''],
-  h4: ['x.x.x.x.x.x.x.x.', '........x.......', 'x...x...x...x...', ''],
-  h5: ['xxxxxxxxxxxxxxxx', '........x.......', 'x.x.x.x.x.x.x.x.', '....x.......x...'],
-};
-
-function drumGrid(sg: Song, L: number): string[] {
-  const l = clamp(L, 2, 5);
-  if (sg.half) return DR['h' + l];
-  if (l === 2) return DR.l2;
-  return DR['l' + l + (sg.res === 1 ? 'a' : 'b')];
-}
+// sidechain depth per intensity (fraction of gain removed on each kick)
+const PUMP = [0, 0, 0.5, 0.6, 0.68, 0.73, 0.78];
 
 // ---------- audio graph ----------
 
 let ctx: AudioContext | null = null;
 let noiseBuf: AudioBuffer | null = null;
 let waves: { harp: PeriodicWave; organ: PeriodicWave; flute: PeriodicWave } | null = null;
-let musicIn: GainNode | null = null;
+let musicIn: GainNode | null = null; // every non-drum layer -> pump bus
+let drumIn: GainNode | null = null;
+let pumpG: GainNode | null = null;
 let duckG: GainNode | null = null;
 let stingIn: GainNode | null = null;
 let revIn: GainNode | null = null;
@@ -473,7 +502,7 @@ function makeIR(c: AudioContext, sec: number): AudioBuffer {
     let s = 0;
     for (let i = pre; i < len; i++) {
       const t = (i - pre) / sr;
-      const env = Math.exp((-t * 6.9) / 2.9) * Math.min(1, t / 0.012);
+      const env = Math.exp((-t * 6.9) / (sec * 0.92)) * Math.min(1, t / 0.012);
       const a = 0.9 - 0.8 * Math.min(1, t / sec); // the tail gets darker
       s += a * (Math.random() * 2 - 1 - s);
       d[i] = s * env;
@@ -525,45 +554,78 @@ function buildGraph(c: AudioContext) {
 
   const sum = c.createGain();
   sum.connect(glue);
-  musicIn = c.createGain();
-  musicIn.gain.value = 0.75;
+  const mix = c.createGain();
   duckG = c.createGain();
-  musicIn.connect(duckG).connect(sum);
+  mix.connect(duckG).connect(sum);
+  pumpG = c.createGain();
+  pumpG.connect(mix);
+  musicIn = c.createGain();
+  musicIn.gain.value = 0.72;
+  musicIn.connect(pumpG);
+  drumIn = c.createGain();
+  drumIn.gain.value = 0.95;
+  drumIn.connect(mix);
   stingIn = c.createGain();
   stingIn.gain.value = 0.8;
   stingIn.connect(sum);
 
+  // one shared cathedral reverb; its return goes through the pump so the tails breathe with the kick
   revIn = c.createGain();
   const rHp = c.createBiquadFilter();
   rHp.type = 'highpass';
-  rHp.frequency.value = 220;
+  rHp.frequency.value = 180;
   const rLp = c.createBiquadFilter();
   rLp.type = 'lowpass';
-  rLp.frequency.value = 7000;
+  rLp.frequency.value = 6500;
   const conv = c.createConvolver();
-  conv.buffer = makeIR(c, 3.2);
+  conv.buffer = makeIR(c, 5);
   const rOut = c.createGain();
-  rOut.gain.value = 0.55;
-  revIn.connect(rHp).connect(rLp).connect(conv).connect(rOut).connect(sum);
+  rOut.gain.value = 0.65;
+  revIn.connect(rHp).connect(rLp).connect(conv).connect(rOut).connect(pumpG);
 
-  stingRig = buildRig(c, stingIn, revIn);
+  stingRig = buildRig(c, stingIn, stingIn, revIn);
   stingRig.out.gain.value = 1;
+  stingRig.dout.gain.value = 1;
   stingRig.send.gain.value = 1;
+}
+
+/** sidechain duck on the pump bus: down in ~5 ms, exponential recovery over ~60% of a beat */
+function pumpAt(t: number, depth: number, beat: number) {
+  if (!pumpG || depth <= 0) return;
+  const g = pumpG.gain;
+  g.cancelScheduledValues(t);
+  g.setTargetAtTime(1 - depth, t, 0.0016);
+  g.setTargetAtTime(1, t + 0.006, beat * 0.15);
+}
+
+function pumpReset() {
+  if (!ctx || !pumpG) return;
+  const now = ctx.currentTime;
+  pumpG.gain.cancelScheduledValues(now);
+  pumpG.gain.setTargetAtTime(1, now, 0.05);
 }
 
 // ---------- per-track instrument rig (own buses so tracks can crossfade) ----------
 
 interface Rig {
   out: GainNode;
+  dout: GainNode;
   send: GainNode;
   lead: GainNode;
   leadClean: GainNode;
   leadDrive: GainNode;
   leadDist: GainNode;
+  hook: GainNode;
+  hookDrive: GainNode;
+  hookDelay: DelayNode;
   gtr: GainNode[];
   gtrDrive: GainNode[];
   bass: GainNode;
   bassDrive: GainNode;
+  sub: GainNode;
+  padL: GainNode;
+  padR: GainNode;
+  kickBus: GainNode;
   orgL: GainNode;
   orgR: GainNode;
   orgDrive: GainNode;
@@ -575,7 +637,7 @@ interface Rig {
   nodes: AudioNode[];
 }
 
-function buildRig(c: AudioContext, dest: AudioNode, rev: AudioNode): Rig {
+function buildRig(c: AudioContext, dest: AudioNode, ddest: AudioNode, rev: AudioNode): Rig {
   const nodes: AudioNode[] = [];
   const g = (v = 1) => {
     const n = c.createGain();
@@ -609,8 +671,39 @@ function buildRig(c: AudioContext, dest: AudioNode, rev: AudioNode): Rig {
 
   const out = g(0);
   out.connect(dest);
+  const dout = g(0);
+  dout.connect(ddest);
   const send = g(0);
   send.connect(rev);
+
+  // hook: bright crunchy harpsichord / saw lead + dotted-8th feedback delay
+  const hook = g(1);
+  hook.connect(g(0.4)).connect(out);
+  const hookDrive = g(2.5);
+  const hookWet = g(0.45);
+  hook.connect(hookDrive).connect(ws(6, '2x')).connect(bq('peaking', 2600, 1, 5)).connect(bq('lowpass', 6500, 0.7)).connect(hookWet).connect(out);
+  const hookDelay = c.createDelay(2);
+  hookDelay.delayTime.value = 0.25;
+  nodes.push(hookDelay);
+  const dlLp = bq('lowpass', 2800, 0.7);
+  hookWet.connect(hookDelay).connect(dlLp).connect(g(0.38)).connect(hookDelay);
+  dlLp.connect(g(0.3)).connect(out);
+  dlLp.connect(g(0.25)).connect(send);
+  hook.connect(g(0.18)).connect(send);
+
+  // sub drone on the tonic
+  const sub = g(1);
+  sub.connect(bq('lowpass', 140, 0.7)).connect(g(0.6)).connect(out);
+
+  // wide dark pads (detuned saws) drenched in reverb
+  const padL = g(1);
+  const padR = g(1);
+  const padBus = g(1);
+  padL.connect(pn(-0.75)).connect(padBus);
+  padR.connect(pn(0.75)).connect(padBus);
+  const padF = bq('lowpass', 1500, 0.9);
+  padBus.connect(padF).connect(bq('highpass', 90)).connect(g(0.55)).connect(out);
+  padF.connect(g(0.9)).connect(send);
 
   // lead (harpsichord / flute): clean path + amp path
   const lead = g(1);
@@ -674,10 +767,12 @@ function buildRig(c: AudioContext, dest: AudioNode, rev: AudioNode): Rig {
   const drums = g(1);
   const dComp = comp(c, -12, 4, 4, 0.003, 0.12);
   nodes.push(dComp);
-  drums.connect(dComp).connect(g(0.85)).connect(out);
+  drums.connect(dComp).connect(g(0.9)).connect(dout);
   const drumsVerb = g(1);
   drumsVerb.connect(drums);
-  drumsVerb.connect(g(0.22)).connect(send);
+  drumsVerb.connect(g(0.3)).connect(send);
+  const kickBus = g(1);
+  kickBus.connect(ws(2.5, 'none')).connect(drums);
 
   // shared vibrato LFO (cents)
   const lfo = c.createOscillator();
@@ -686,7 +781,10 @@ function buildRig(c: AudioContext, dest: AudioNode, rev: AudioNode): Rig {
   lfo.connect(vib);
   lfo.start();
 
-  return { out, send, lead, leadClean, leadDrive, leadDist, gtr, gtrDrive, bass, bassDrive, orgL, orgR, orgDrive, choir, drums, drumsVerb, vib, lfo, nodes };
+  return {
+    out, dout, send, lead, leadClean, leadDrive, leadDist, hook, hookDrive, hookDelay, gtr, gtrDrive, bass, bassDrive, sub, padL, padR, kickBus,
+    orgL, orgR, orgDrive, choir, drums, drumsVerb, vib, lfo, nodes,
+  };
 }
 
 function disposeRig(r: Rig) {
@@ -707,12 +805,14 @@ function disposeRig(r: Rig) {
 
 const LEAD_TRASH = [0, 0, 0, 0.3, 0.45, 0.6, 0.9];
 
-function applyLevel(r: Rig, L: number, t: number) {
+function applyLevel(r: Rig, L: number, t: number, grit = 1, sd = 0) {
   const set = (p: AudioParam, v: number) => p.setTargetAtTime(v, t, 0.03);
   const tr = LEAD_TRASH[clamp(L, 0, 6)];
   set(r.leadClean.gain, 1 - tr * 0.55);
   set(r.leadDist.gain, tr * 0.32);
   set(r.leadDrive.gain, L >= 6 ? 16 : 6);
+  set(r.hookDrive.gain, grit * (L >= 6 ? 9 : 2 + L * 0.7));
+  if (sd > 0) r.hookDelay.delayTime.setTargetAtTime(Math.min(1.9, sd * 3), t, 0.05);
   for (const d of r.gtrDrive) set(d.gain, L >= 6 ? 14 : 6);
   set(r.bassDrive.gain, L >= 6 ? 3.2 : 1.3);
   set(r.orgDrive.gain, L >= 6 ? 3 : 0.9);
@@ -793,7 +893,7 @@ function bendOsc(o: OscillatorNode, f: number, t: number, b?: Bend) {
   o.frequency.exponentialRampToValueAtTime(f * b.to, t + b.at + b.dur);
 }
 
-function harp(r: Rig, t: number, m: number, len: number, vel: number, bend?: Bend) {
+function harp(r: Rig, t: number, m: number, len: number, vel: number, bend?: Bend, dest?: AudioNode) {
   const c = ctx;
   if (!c || !waves || busy(2)) return;
   const f = mtof(m);
@@ -816,7 +916,7 @@ function harp(r: Rig, t: number, m: number, len: number, vel: number, bend?: Ben
   const p = panNode(c, clamp((m - 62) / 32, -0.55, 0.55) + rnd(0.05));
   o1.connect(lp);
   o2.connect(lp);
-  lp.connect(g).connect(p).connect(r.lead);
+  lp.connect(g).connect(p).connect(dest ?? r.lead);
   own(o1, [lp, g, p]);
   own(o2);
   if (busy(1)) return;
@@ -961,49 +1061,155 @@ function choirN(r: Rig, t: number, m: number, len: number, vel: number, atk = 0.
   });
 }
 
+/** gritty saw lead (hook, an octave up) */
+function sawLead(r: Rig, t: number, m: number, len: number, vel: number) {
+  const c = ctx;
+  if (!c || busy(1)) return;
+  const f = mtof(m);
+  const end = t + len + 0.1;
+  const lp = filt(c, 'lowpass', 3000, 3);
+  lp.frequency.setValueAtTime(Math.min(f * 8, 9000), t);
+  lp.frequency.setTargetAtTime(Math.max(f * 2.5, 900), t + 0.003, 0.1);
+  const g = amp(c);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vel, t + 0.005);
+  g.gain.setTargetAtTime(vel * 0.7, t + 0.005, 0.1);
+  g.gain.setTargetAtTime(0, t + len, 0.03);
+  lp.connect(g).connect(r.hook);
+  [-9, 9].forEach((det, i) => {
+    const o = osc(c, 'sawtooth', f, t, end, det);
+    o.connect(lp);
+    own(o, i === 0 ? [lp, g] : undefined);
+  });
+}
+
+/** wide dark pad voice: one detuned saw per side */
+function padN(r: Rig, t: number, m: number, len: number, vel: number) {
+  const c = ctx;
+  if (!c || busy(1)) return;
+  const f = mtof(m);
+  const atk = Math.min(0.35, len * 0.4);
+  const end = t + len + 2.2;
+  const pair: [GainNode, number][] = [[r.padL, -14], [r.padR, 14]];
+  for (const [bus, det] of pair) {
+    const o = osc(c, 'sawtooth', f, t, end, det + rnd(4));
+    r.vib.connect(o.detune);
+    const g = amp(c);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vel, t + atk);
+    g.gain.setTargetAtTime(0, t + Math.max(len, atk), 0.45);
+    o.connect(g).connect(bus);
+    own(o, [g], () => r.vib.disconnect(o.detune));
+  }
+}
+
+function subN(r: Rig, t: number, m: number, len: number, vel: number) {
+  const c = ctx;
+  if (!c || busy(2)) return;
+  const o = osc(c, 'sine', mtof(m), t, t + len + 0.8);
+  const g = amp(c);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vel, t + 0.06);
+  g.gain.setTargetAtTime(0, t + len, 0.15);
+  o.connect(g).connect(r.sub);
+  own(o, [g]);
+}
+
+/** filtered noise riser into the next phrase */
+function riser(r: Rig, t: number, dur: number, vel: number) {
+  const c = ctx;
+  if (!c || busy(2)) return;
+  const n = noiseSrc(c, t, t + dur + 0.1);
+  if (!n) return;
+  const bp = filt(c, 'bandpass', 300, 4);
+  bp.frequency.setValueAtTime(300, t);
+  bp.frequency.exponentialRampToValueAtTime(7500, t + dur);
+  const g = amp(c);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vel, t + dur);
+  g.gain.setTargetAtTime(0, t + dur, 0.03);
+  n.connect(bp).connect(g);
+  g.connect(r.dout);
+  g.connect(r.send);
+  own(n, [bp, g]);
+}
+
+/** sub boom on the downbeat of a new phrase */
+function boom(r: Rig, t: number, vel: number) {
+  const c = ctx;
+  if (!c || busy(2)) return;
+  const o = osc(c, 'sine', 75, t, t + 1.6);
+  o.frequency.exponentialRampToValueAtTime(28, t + 1.2);
+  const g = amp(c);
+  hitEnv(g.gain, t, vel, 0.4);
+  o.connect(g).connect(r.kickBus);
+  own(o, [g]);
+}
+
 // ---------- drums ----------
 
 function kick(r: Rig, t: number, vel = 1, tight = false) {
   const c = ctx;
   if (!c || busy(3)) return;
-  const o = osc(c, 'sine', 165, t, t + (tight ? 0.24 : 0.48));
-  o.frequency.exponentialRampToValueAtTime(58, t + 0.04);
-  o.frequency.exponentialRampToValueAtTime(43, t + 0.2);
+  const end = t + (tight ? 0.32 : 0.9);
+  const o = osc(c, 'sine', 190, t, end);
+  o.frequency.exponentialRampToValueAtTime(56, t + 0.035);
+  o.frequency.exponentialRampToValueAtTime(41, t + 0.3);
   const g = amp(c);
-  hitEnv(g.gain, t, vel, tight ? 0.055 : 0.11, 0.01);
-  o.connect(g).connect(r.drums);
+  g.gain.setValueAtTime(vel, t);
+  g.gain.setTargetAtTime(vel * 0.7, t + 0.01, 0.06);
+  g.gain.setTargetAtTime(0, t + 0.08, tight ? 0.05 : 0.2);
+  o.connect(g).connect(r.kickBus);
   own(o, [g]);
+  const tk = osc(c, 'square', 1700, t, t + 0.012);
+  const tg = amp(c);
+  hitEnv(tg.gain, t, vel * 0.12, 0.003);
+  tk.connect(tg).connect(r.kickBus);
+  own(tk, [tg]);
   const n = noiseSrc(c, t, t + 0.03);
   if (!n) return;
-  const hp = filt(c, 'highpass', 2500);
+  const hp = filt(c, 'highpass', 3000);
   const ng = amp(c);
-  hitEnv(ng.gain, t, vel * 0.55, 0.005);
-  n.connect(hp).connect(ng).connect(r.drums);
+  hitEnv(ng.gain, t, vel * 0.5, 0.006);
+  n.connect(hp).connect(ng).connect(r.kickBus);
   own(n, [hp, ng]);
 }
 
+/** snare + clap with a big gated-reverb tail */
 function snare(r: Rig, t: number, vel = 1) {
   const c = ctx;
   if (!c || busy(3)) return;
-  const o = osc(c, 'triangle', 220, t, t + 0.2);
-  o.frequency.exponentialRampToValueAtTime(170, t + 0.06);
+  const o = osc(c, 'triangle', 230, t, t + 0.2);
+  o.frequency.exponentialRampToValueAtTime(175, t + 0.06);
   const og = amp(c);
-  hitEnv(og.gain, t, vel * 0.75, 0.04);
+  hitEnv(og.gain, t, vel * 0.7, 0.045);
   o.connect(og).connect(r.drumsVerb);
   own(o, [og]);
-  const n = noiseSrc(c, t, t + 0.38);
+  const n = noiseSrc(c, t, t + 0.3);
   if (!n) return;
-  const bp = filt(c, 'bandpass', 2400, 0.55);
-  const g1 = amp(c);
-  hitEnv(g1.gain, t, vel * 0.95, 0.075, 0.003);
-  const hp = filt(c, 'highpass', 6500);
+  const hp = filt(c, 'highpass', 5500);
   const g2 = amp(c);
-  hitEnv(g2.gain, t, vel * 0.4, 0.035);
-  n.connect(bp).connect(g1).connect(r.drumsVerb);
+  hitEnv(g2.gain, t, vel * 0.45, 0.03);
   n.connect(hp).connect(g2).connect(r.drumsVerb);
-  own(n, [bp, g1, hp, g2]);
+  // clap: three quick bursts
+  const cbp = filt(c, 'bandpass', 1150, 1.1);
+  const cg = amp(c);
+  for (const [dt, tau] of [[0, 0.005], [0.011, 0.005], [0.022, 0.05]]) {
+    cg.gain.setValueAtTime(vel * 0.85, t + dt);
+    cg.gain.setTargetAtTime(0, t + dt, tau);
+  }
+  n.connect(cbp).connect(cg).connect(r.drumsVerb);
+  // gated tail: dense noise held then chopped
+  const tl = filt(c, 'lowpass', 6000);
+  const th = filt(c, 'highpass', 450);
+  const tg = amp(c);
+  tg.gain.setValueAtTime(0, t);
+  tg.gain.linearRampToValueAtTime(vel * 0.32, t + 0.006);
+  tg.gain.linearRampToValueAtTime(vel * 0.24, t + 0.17);
+  tg.gain.linearRampToValueAtTime(0, t + 0.2);
+  n.connect(tl).connect(th).connect(tg).connect(r.drumsVerb);
+  own(n, [hp, g2, cbp, cg, tl, th, tg]);
 }
-
 function hat(r: Rig, t: number, vel = 1, open = false) {
   const c = ctx;
   if (!c || busy(1)) return;
@@ -1158,7 +1364,7 @@ function stepPlayer(c: AudioContext, p: Player) {
     p.bar = barAt(sg, p.barIdx);
     p.L = level;
     p.sd = 60 / ((p.bar.bpm ?? sg.bpm) * (p.L >= 6 ? 1.15 : 1)) / 4;
-    applyLevel(r, p.L, t);
+    applyLevel(r, p.L, t, sg.hookGrit, p.sd);
   }
   const b = p.bar;
   const s = p.step;
@@ -1173,7 +1379,8 @@ function stepPlayer(c: AudioContext, p: Player) {
   const segLen = len / nch;
   const at = (n: Note) => t + (n[1] - s) * sd;
   const loopPos = p.barIdx - sg.intro.length;
-  const phrasePos = loopPos >= 0 ? loopPos % sg.phrase : -1;
+  const inLoop = loopPos >= 0;
+  const phrasePos = inLoop ? loopPos % sg.phrase : -1;
 
   if (s % 4 === 0) fireBeat(c, p, t);
 
@@ -1196,53 +1403,66 @@ function stepPlayer(c: AudioContext, p: Player) {
     }
   }
 
-  const gp = b.gtr ?? sg.gtr[clamp(L, 3, 6) - 3];
+  // obsessive hook: 1-bar ostinato mapped onto the chord of each step
+  if (inLoop && len === 16 && L >= lv.hook) {
+    for (const h of sg.hook) {
+      if (Math.floor(h.s) !== s) continue;
+      const m = hookPitch(h, b.ch[seg(s)], sg.hookBase, sg.scale);
+      const tt = t + (h.s - s) * sd;
+      const ln = h.l * sd * 0.9;
+      harp(r, tt, m, ln, sg.hookVel * (h.s % 4 === 0 ? 1 : 0.85), undefined, r.hook);
+      if (L >= lv.lead) sawLead(r, tt, m + 12, ln, L >= 6 ? 0.075 : 0.055);
+    }
+  }
 
-  // bass
+  // sub drone on the tonic
+  if (s === 0 && L >= lv.sub) subN(r, t, sg.tonic, len * sd + 0.05, sg.half ? 0.35 : 0.42);
+
+  // dark arpeggiated bass
   if (L >= lv.bass) {
     if (b.bass) {
       for (const n of b.bass[s]) bassN(r, at(n), n[0], n[2] * sd * 0.95);
     } else if (b.riff) {
       for (const n of b.riff[s]) bassN(r, at(n), n[0] - 12, n[2] * sd * 0.9);
-    } else if (b.d.b) {
-      const base = fold(ch.b, 28);
-      if (L >= lv.gtr && b.d.g) {
-        let cc = gp[s % gp.length];
-        if (cc === '-' && segStart(s)) cc = 'X';
-        if (cc === 'X' || cc === 'p') bassN(r, t, base, (cc === 'p' ? 0.8 : holdLen(gp, s, len, segStart) * 0.94) * sd);
-      } else {
-        let bc = sg.bassPat[s % 16];
-        if (bc === '-' && segStart(s)) bc = 'r';
-        if (bc !== '.' && bc !== '-') {
-          const m = bc === 'o' ? base + 12 : bc === 'f' ? fold(ch.r + ch.p5, 31) : bc === 't' ? fold(ch.r + ch.iv[1], 31) : base;
-          bassN(r, t, m, holdLen(sg.bassPat, s, len, segStart) * sd * 0.92);
-        }
+    } else if (b.d.b && (sg.res === 1 || s % 2 === 0)) {
+      const bc = sg.bassArp[s % 16];
+      if (bc !== '.') {
+        const base = fold(ch.b, 28);
+        const m = bc === 'o' ? base + 12 : bc === 'f' ? fold(ch.r + ch.p5, 31) : bc === 't' ? fold(ch.r + ch.iv[1], 31) : base;
+        bassN(r, t, m, sd * sg.res * 0.85, s % 4 === 0 ? 1 : 0.78);
       }
     }
   }
 
   // guitars
   if (L >= lv.gtr) {
+    const gp = b.gtr ?? sg.gtr[clamp(L, 3, 6) - 3];
     if (b.riff) {
       for (const n of b.riff[s]) gtr(r, at(n), n[0], n[2] * sd * 0.92, n[2] <= 1 ? 'pn' : 'n');
     } else if (b.d.g) {
       let cc = gp[s % gp.length];
       if (cc === '-' && segStart(s)) cc = 'X';
-      if (cc === 'X' || cc === 'p') gtr(r, t, fold(ch.r, 38), holdLen(gp, s, len, segStart) * sd * 0.94, cc === 'X' ? 'X' : 'p', ch.p5);
+      if (cc === 'X' || cc === 'p') gtr(r, t, fold(ch.r, 38), holdLen(gp, s, len, segStart) * sd * 0.94, cc === 'X' ? 'X' : 'p', ch.p5, 0.9);
     }
   }
 
-  // organ
+  const run = segStart(s) ? chordRun(s, len, segStart) * sd : 0;
+
+  // wide dark pads
+  if (L >= lv.pad && b.d.o && run) {
+    const v = voicing(ch, 50);
+    v.push(fold(ch.r + ch.iv[1], 62));
+    for (const m of v) padN(r, t, m, run, 0.05);
+  }
+
+  // organ (sustained, cathedral)
   if (L >= lv.org) {
     if (b.org) {
       for (const n of b.org[s]) organN(r, at(n), n[0], n[2] * sd, 0.07, 0.01);
-    } else if (b.d.o && segStart(s)) {
-      const pad = sg.org === 'pad';
-      const run = chordRun(s, len, segStart);
-      const ln = (pad ? run : Math.min(run, 3)) * sd;
+    } else if (b.d.o && run) {
       const notes = voicing(ch, 55);
       notes.push(fold(ch.r, 43));
-      for (const m of notes) organN(r, t, m, ln, pad ? 0.045 : 0.07, pad ? 0.12 : 0.005);
+      for (const m of notes) organN(r, t, m, run, 0.05, 0.1);
     }
   }
 
@@ -1250,54 +1470,69 @@ function stepPlayer(c: AudioContext, p: Player) {
   if (L >= lv.choir) {
     if (b.choir) {
       for (const n of b.choir[s]) choirN(r, at(n), n[0], n[2] * sd, 0.08);
-    } else if (b.d.c && segStart(s)) {
-      const run = chordRun(s, len, segStart) * sd;
+    } else if (b.d.c && run) {
       for (const m of voicing(ch, 57)) choirN(r, t, m, run, 0.07, Math.min(0.2, run * 0.3));
     }
   }
 
   if (sg.drone && s === 0 && L >= lv.drone) gtr(r, t, sg.drone, len * sd + 0.5, 'drone', 7, 0.8);
 
-  if (L >= lv.drums) drumStep(p, s, t, L, phrasePos);
+  // noise riser into bar 1 of every 8-bar phrase (and out of the intro), boom on arrival
+  if (s === 0 && L >= lv.riser) {
+    const preLoop = !inLoop && p.barIdx === sg.intro.length - 1;
+    if (preLoop || (inLoop && loopPos % 8 === 7)) riser(r, t, len * sd, L >= 6 ? 0.3 : 0.22);
+    if (inLoop && loopPos % 8 === 0 && (loopPos > 0 || sg.intro.length > 0)) boom(r, t, 0.7);
+  }
+
+  if (L >= lv.drums) drumStep(p, s, t, L, phrasePos, loopPos);
 }
 
-function drumStep(p: Player, s: number, t: number, L: number, phrasePos: number) {
+function drumStep(p: Player, s: number, t: number, L: number, phrasePos: number, loopPos: number) {
   const r = p.rig;
   const b = p.bar;
   const sg = p.song;
   const len = b.len;
   if (b.hits) for (const h of b.hits[s]) hit(r, t, h);
   if (!b.d.d) return;
-  if (s === 0 && (L >= 5 || phrasePos === 0 || b.crash)) crash(r, t, 0.9);
-  if ((b.fill || phrasePos === sg.phrase - 1) && s >= len - 4) {
+  const kv = sg.kickVel;
+  const q = s % 4 === 0;
+  if (s === 0 && (L >= 5 || phrasePos === 0 || b.crash)) crash(r, t, sg.half ? 0.5 : 0.85);
+
+  // four on the floor; every beat ducks the pump bus
+  if (q) {
+    kick(r, t, kv);
+    if (!p.fading) pumpAt(t, PUMP[clamp(L, 0, 6)] * sg.pump, 4 * p.sd);
+  }
+
+  if ((b.fill || phrasePos === sg.phrase - 1) && L >= 3 && s >= len - 4) {
     const i = s - (len - 4);
-    if (L >= 6) {
-      snare(r, t, 0.6 + i * 0.12);
-      kick(r, t, 0.9, true);
-    } else {
-      tom(r, t, [1, 1, 2, 3][i]);
-      if (L >= 4 && i % 2 === 0) kick(r, t, 0.9, true);
-    }
+    if (i === 0) snare(r, t, 0.9);
+    else if (L >= 6) {
+      snare(r, t, 0.55 + i * 0.15);
+      kick(r, t, kv * 0.85, true);
+    } else tom(r, t, [1, 1, 2, 3][i]);
     return;
   }
-  const i = s % 16;
+
+  // double-time kick bursts
   if (L >= 6) {
-    if (sg.res === 1 || sg.half) {
-      if (i % 2 === 0) kick(r, t, 0.95, true);
-      else snare(r, t, 0.72);
-    } else if (i % 2 === 0) {
-      kick(r, t, 0.95, true);
-      snare(r, t, 0.75);
-    }
-    if (i % 4 === 0) china(r, t, 0.85);
-    return;
+    if (!q && (s % 2 === 0 || s >= 13)) kick(r, t, kv * 0.8, true);
+  } else if (L >= 5 && !q && (s === 10 || s === 14 || (loopPos % 2 === 1 && (s === 2 || s === 6)))) {
+    kick(r, t, kv * 0.8, true);
   }
-  const P = drumGrid(sg, L);
-  const tight = L >= 4;
-  if (P[0][i] === 'x') kick(r, t, i % 4 === 0 ? 1 : 0.85, tight);
-  if (P[1][i] === 'x') snare(r, t, 1);
-  if (P[2][i] === 'x') hat(r, t, i % 4 === 0 ? 1 : 0.65);
-  if (P[3][i] === 'x') china(r, t, 0.8);
+
+  // snare + clap on 2 and 4 (beat 3 in half time)
+  if (sg.half ? s === 8 : s === 4 || s === 12) snare(r, t, sg.half ? 0.65 : 1);
+  if (L >= 6 && !sg.half && s % 4 === 2) snare(r, t, 0.45);
+
+  // hats: open on the off-beats, 16ths from level 3
+  if (sg.half) {
+    if (L >= 3 && s % 4 === 2) hat(r, t, 0.55, true);
+  } else if (s % 4 === 2) hat(r, t, 0.9, true);
+  else if (L >= 3 && (sg.res === 1 || s % 2 === 0)) hat(r, t, s % 2 ? 0.4 : 0.6);
+
+  if (L >= 6 && q) china(r, t, 0.75);
+  else if (L === 5 && s === 8) china(r, t, 0.65);
 }
 
 function tick() {
@@ -1336,7 +1571,7 @@ function fadePlayer(p: Player, now: number, sec: number) {
   if (p.fading) return;
   p.fading = true;
   p.stopAt = now + sec + 0.15;
-  for (const g of [p.rig.out.gain, p.rig.send.gain]) {
+  for (const g of [p.rig.out.gain, p.rig.dout.gain, p.rig.send.gain]) {
     g.cancelScheduledValues(now);
     g.setValueAtTime(g.value, now);
     g.linearRampToValueAtTime(0, now + Math.max(0.01, sec));
@@ -1352,8 +1587,8 @@ function startSong(id: BachTrackId) {
   if (cur && cur.song.id === id) return;
   const now = c.currentTime;
   for (const p of players) fadePlayer(p, now, XFADE);
-  const rig = buildRig(c, musicIn, revIn);
-  for (const g of [rig.out.gain, rig.send.gain]) {
+  const rig = buildRig(c, musicIn, drumIn ?? musicIn, revIn);
+  for (const g of [rig.out.gain, rig.dout.gain, rig.send.gain]) {
     g.setValueAtTime(cur ? 0 : 1, now);
     if (cur) g.linearRampToValueAtTime(1, now + XFADE);
   }
@@ -1522,6 +1757,7 @@ export const bach = {
     try {
       const now = ctx.currentTime;
       for (const p of players) fadePlayer(p, now, Math.max(0, fade));
+      pumpReset();
     } catch {
       // ignore
     }

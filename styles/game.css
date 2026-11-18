@@ -249,3 +249,39 @@ button { font: inherit; color: inherit; }
 .g-pop-beat { color: var(--power); font-size: 22px; text-shadow: 3px 3px 0 var(--ink), 0 0 16px var(--power); }
 .g-pop-goth { font-family: var(--f-goth); color: var(--reward); font-size: 46px; -webkit-text-stroke: 2px var(--ink); text-shadow: 4px 4px 0 var(--ink), 0 0 24px color-mix(in srgb, var(--reward) 60%, transparent); }
 .cutin b { font-family: var(--f-goth); -webkit-text-stroke: 0; text-shadow: 7px 7px 0 var(--ink); }
+
+/* ---------- kids edition: loud teachers, stamps, lens ink, touch ---------- */
+.g-bubble { max-width: 300px; padding: 9px 14px 7px; font-family: var(--f-shout); font-weight: 400; font-size: 19px; letter-spacing: .02em; line-height: 1.15; text-transform: uppercase; background: #fffdf2; border: 4px solid var(--ink); box-shadow: 5px 5px 0 var(--ink); border-radius: 14px; margin-top: -18px; }
+.g-bubble::after { border-width: 12px; bottom: -16px; }
+.g-bubble-enemy { color: var(--ink); }
+.g-bubble-boss { background: var(--danger); color: var(--ink); font-size: 22px; max-width: 380px; }
+.g-bubble.cut { background: #fffdf2; }
+.g-bubble.cut::before { content: attr(data-stamp); position: absolute; right: -24px; top: -26px; font-family: var(--f-shout); font-size: 30px; color: var(--bone); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 3px 3px 0 var(--ink); transform: rotate(-14deg); animation: cutIn .25s cubic-bezier(.34,1.56,.64,1); }
+@keyframes cutIn { from { transform: rotate(-14deg) scale(2.4); opacity: 0; } }
+.g-lens { position: absolute; background-size: contain; background-repeat: no-repeat; pointer-events: none; z-index: 3; }
+.hud-stamp { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); pointer-events: none; animation: stampLife 1.3s forwards; }
+.hud-stamp b { display: block; font-family: var(--f-shout); font-weight: 400; font-size: clamp(44px, 8vw, 104px); line-height: 1; color: var(--danger); border: 8px solid var(--danger); padding: 8px 26px 2px; transform: rotate(-9deg); box-shadow: 0 0 0 5px var(--ink), 8px 8px 0 5px var(--ink); background: color-mix(in srgb, var(--ink) 55%, transparent); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; white-space: nowrap; }
+@keyframes stampLife { 0% { transform: translate(-50%, -50%) scale(3); opacity: 0; } 10% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 75% { opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.05); opacity: 0; } }
+.touch { position: absolute; inset: 0; pointer-events: none; z-index: 20; touch-action: none; user-select: none; -webkit-user-select: none; }
+.touch .stick { position: absolute; left: max(24px, env(safe-area-inset-left)); bottom: max(28px, env(safe-area-inset-bottom)); width: 150px; height: 150px; border-radius: 50%; border: 4px solid rgba(232,251,255,.35); background: rgba(1,6,10,.35); pointer-events: auto; }
+.touch .stick i { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(0,255,213,.55); border: 3px solid var(--ink); }
+.touch .btns { position: absolute; right: max(20px, env(safe-area-inset-right)); bottom: max(24px, env(safe-area-inset-bottom)); width: 250px; height: 220px; pointer-events: none; }
+.touch .tb { position: absolute; display: grid; place-items: center; border-radius: 50%; border: 4px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); font-family: var(--f-shout); font-size: 15px; color: var(--ink); pointer-events: auto; opacity: .85; }
+.touch .tb:active, .touch .tb.on { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); opacity: 1; }
+.touch .tb.attack { right: 0; bottom: 0; width: 110px; height: 110px; background: var(--combo); font-size: 20px; }
+.touch .tb.heavy { right: 120px; bottom: 6px; width: 74px; height: 74px; background: var(--reward); }
+.touch .tb.jump { right: 20px; bottom: 122px; width: 74px; height: 74px; background: var(--ui); }
+.touch .tb.dash { right: 112px; bottom: 96px; width: 66px; height: 66px; background: var(--bone); }
+.touch .tb.special { right: 196px; bottom: 150px; width: 62px; height: 62px; background: var(--power); }
+.touch .pause { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); pointer-events: auto; font: 700 13px var(--f-ui); padding: 6px 14px; background: var(--ink); color: var(--bone); border: 2px solid var(--bone); }
+.touch .tb.special, .touch .tb.dash, .touch .tb.heavy, .touch .tb.jump { font-size: 12px; }
+@media (pointer: coarse) {
+  .dialog, .dialog.bark { bottom: auto; top: 76px; width: min(560px, 62vw); }
+  .dialog.bark { grid-template-columns: 64px minmax(0, 1fr); }
+  .dialog.bark.right { grid-template-columns: minmax(0, 1fr) 64px; }
+  .dialog .face { min-height: 64px; }
+  .dialog p { font-size: 15px; min-height: 0; }
+  .metro { bottom: auto; top: 60px; }
+  .hud-combo { top: 22%; }
+  .hud-combo .n { font-size: 60px; }
+}

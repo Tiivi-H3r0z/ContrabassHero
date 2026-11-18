@@ -60,7 +60,7 @@ export abstract class Boss {
 
   constructor(protected game: Game, public id: BossId) {
     const info = BOSS_INFO[id];
-    this.hp = info.hp * game.difficulty;
+    this.hp = info.hp * game.difficulty * ((game as { bossHpMul?: number }).bossHpMul ?? 1);
     this.maxHp = this.hp;
     this.name = info.name;
     this.title = info.title;

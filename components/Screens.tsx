@@ -37,7 +37,7 @@ const MenuButtons: React.FC<{ items: { label: string; kind?: 'sec' | 'dng'; acti
   );
 };
 
-export const TitleScreen: React.FC<{ onPlay: () => void; onOptions: () => void; enabled: boolean }> = ({ onPlay, onOptions, enabled }) => {
+export const TitleScreen: React.FC<{ onPlay: () => void; onOptions: () => void; enabled: boolean; difficulty: string; onDifficulty: () => void }> = ({ onPlay, onOptions, enabled, difficulty, onDifficulty }) => {
   const [armed, setArmed] = useState(false);
   useEffect(() => {
     if (armed) return;
@@ -62,7 +62,7 @@ export const TitleScreen: React.FC<{ onPlay: () => void; onOptions: () => void; 
         <span className="stamp">ÉDITION CARNAGE</span>
         <p className="pitch">Six gamins. Six instruments. <b>Le conservatoire va saigner de l'encre.</b></p>
         {armed ? (
-          <MenuButtons enabled={enabled} items={[{ label: 'JOUER', action: onPlay }, { label: 'OPTIONS', kind: 'sec', action: onOptions }, { label: 'VERSIONS', kind: 'sec', action: () => { location.href = location.pathname; } }]} />
+          <MenuButtons enabled={enabled} items={[{ label: 'JOUER', action: onPlay }, { label: `MODE : ${difficulty}`, kind: 'sec', action: onDifficulty }, { label: 'OPTIONS', kind: 'sec', action: onOptions }, { label: 'VERSIONS', kind: 'sec', action: () => { location.href = location.pathname; } }]} />
         ) : (
           <div className="press">APPUIE SUR UNE TOUCHE</div>
         )}

@@ -6,6 +6,8 @@ Guidance for Claude Code when working in this repository.
 
 **Contrabass Hero** is a frantic 3D arena hack'n'slash in the browser. A band of young musicians fights hordes of conservatory teachers pouring out of a dimensional rift, on a floating island over the void. Knock them off the edge, chain combos, reach the stage quota, beat the boss. 7 stages, 7 bosses, 6 playable heroes. Tone: sarcastic, teens/adults, cartoon (no blood: enemies burst into ink and sheet-music confetti). All player-facing text is French.
 
+Audience (V3): 10-year-olds with an absurd, dark sense of humour. They love flirting with adult stuff without touching it: teachers threaten like pompous duelists (« JE VAIS TE FAIRE DANSER », « MANANT ! », « RÉPÈTE ENCORE UNE FOIS »). No swearing, nothing sexual, no realistic gore: ink is the blood, notes are the guts. Their mean lines are the main source of laughs, so keep them big, frequent and readable.
+
 ## Versions
 
 The app opens on a version picker (`Launcher.tsx`, `styles/launcher.css`). `index.tsx` routes on `?v=`: each version boots in its own page load so styles and WebGL never leak between them.
@@ -62,11 +64,16 @@ React only renders UI; the game is a plain TypeScript engine in `game/`.
 | `game/audio/audio.ts` | Fully synthesized SFX and adaptive procedural music (intensity follows the combo nuance) |
 | `game/audio/bach.ts` | "Bach thrash" engine: real Bach themes (BWV 565, 846, 996, 1067, 1068) on distorted harpsichord, guitars, organ, choir, drums; intensity 0..6 (6 = CARNAGE), stingers, analyser |
 | `game/audio/music.ts` | V3 music facade over bach.ts: track per stage/boss, ducking, beat clock (`beatError()` drives the on-beat bonus) |
+| `game/entities/flowMoves.ts` + Hero `flowAttack` | **Flow combat** (Arkham-style freeflow): each attack press picks a teacher (stick direction or nearest, up to 11 m), lunges to it if out of reach (i-frames, ink trail) and plays a contextual move that never repeats twice: jab/revers/rafale/uppercut, jongle on airborne, brise-garde on shielded CPE, smash finisher (crêpe) on low HP, toupie on crowds, volée after long lunges, écrase every 6th hit. Mash-friendly input buffer; on-beat presses speed moves up. Heavy tap = launcher, hold = charged slam. Dash on a teacher showing « ! » (windup) = counter with slow-mo |
+| `game/difficulty.ts` | Facile (default: 8 strings, slower teachers, falls cost no life, bosses 60 % HP, aim assist, hold-to-combo), Normal, Carnage |
+| `game/core/touch.ts`, `components/TouchControls.tsx` | Mobile controls (virtual stick + buttons), shown on coarse pointers or `?touch=1`; Director spawns fewer teachers on mobile |
 | `game/systems/Finales.ts` | Hero executions on a boss under 12 % HP or a weakened elite: gothic card, choreography, kill |
 | `game/data/dialogues.ts` | All French text: stage intros, boss scenes, barks, taunts, events, report-card lines |
 | `game/MenuScene.ts`, `game/portraits.ts` | 3D menu backdrop; hero/boss portraits rendered once to PNG data URLs |
 
 Key rules:
+- Ink: every hit sprays ink (`fx.inkSpray`) and stains the floor (instanced decals); teachers darken with damage (`iInk` instance attribute); big hits splash ink on the lens (`overlay.screenSplat`).
+- Teacher bubbles type out and get cut mid-sentence when the teacher dies (`overlay.cut`).
 - No image or audio files: every model, texture and sound is generated in code.
 - Models are built from primitives (`builder.ts`); emissive parts use `glow >= 1.5` to bloom (bloom threshold 1.15, linear HDR).
 - Enemies are `InstancedMesh` per archetype (one draw call + one outline each); per-instance hit flash via the `iFlash` attribute.

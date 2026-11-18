@@ -230,6 +230,8 @@ export class Finales {
     g.fx.debris(p, [PAL.ink, PAL.ink, '#ffffff', '#7a2a2a', PAL.bone], 40, 20, 0.55);
     for (let i = 0; i < 3; i++) g.fx.ring(a.target.pos, i % 2 ? PAL.reward : PAL.bone, 1, 9 + i * 5, 0.5 + i * 0.15, 3);
     g.fx.splat(a.target.pos, a.target.boss ? 11 : 6);
+    g.overlay.screenSplat(1.4);
+    g.overlay.screenSplat(1);
     g.shake(1, 0.7, 6);
     g.impactFrames(3, true);
     audio.play('explosion', { volume: 1.3, pitch: 0.8 });

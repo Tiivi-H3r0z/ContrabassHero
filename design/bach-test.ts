@@ -1,6 +1,6 @@
 import { bach, BACH_TRACKS, BachTrackId } from '../game/audio/bach';
 
-const LEVELS = ['0 · clavecin seul', '1 · + basse', '2 · + batterie', '3 · + guitares', '4 · + orgue, double pédale', '5 · + chœur', '6 · CARNAGE'];
+const LEVELS = ['0 · clavecin seul', '1 · + hook, basse arpégée, sub', '2 · + kick 4/4, clap, pump, nappes', '3 · + guitares, risers', '4 · + orgue, lead saw', '5 · + chœur, double kick', '6 · CARNAGE'];
 
 const $ = <T extends HTMLElement>(s: string) => document.querySelector(s) as T;
 const tracksEl = $<HTMLDivElement>('#tracks');

@@ -136,7 +136,10 @@ export class Fx {
   solid: ParticlePool;
   private rings: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; t: number; dur: number; r0: number; r1: number; active: boolean }[] = [];
   private arcs: { mesh: THREE.Mesh; mat: THREE.ShaderMaterial; t: number; dur: number; active: boolean; spin: number }[] = [];
-  private decals: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial; t: number; active: boolean }[] = [];
+  private decalMesh!: THREE.InstancedMesh;
+  private decals: { x: number; z: number; y: number; size: number; rot: number; t: number; life: number; active: boolean }[] = [];
+  private decalNext = 0;
+  private decalDirty = false;
   private teles: Telegraph[] = [];
   shadows: THREE.InstancedMesh;
   private shadowCount = 0;
@@ -165,14 +168,18 @@ export class Fx {
     }
     const splat = splatTexture();
     const decalGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
-    for (let i = 0; i < 70; i++) {
-      const mat = new THREE.MeshBasicMaterial({ map: splat, color: PAL.ink, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
-      const mesh = new THREE.Mesh(decalGeo, mat);
-      mesh.visible = false;
-      mesh.renderOrder = 1;
-      this.group.add(mesh);
-      this.decals.push({ mesh, mat, t: 0, active: false });
+    const DECALS = 280;
+    this.decalMesh = new THREE.InstancedMesh(decalGeo, new THREE.MeshBasicMaterial({ map: splat, color: 0xffffff, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 }), DECALS);
+    this.decalMesh.frustumCulled = false;
+    this.decalMesh.renderOrder = 1;
+    this.decalMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    tmpO.scale.setScalar(0); tmpO.updateMatrix();
+    for (let i = 0; i < DECALS; i++) {
+      this.decalMesh.setMatrixAt(i, tmpO.matrix);
+      this.decalMesh.setColorAt(i, tmpC.set(PAL.ink));
+      this.decals.push({ x: 0, z: 0, y: 0.03 + (i % 12) * 0.0015, size: 1, rot: 0, t: 0, life: 16, active: false });
     }
+    this.group.add(this.decalMesh);
     const teleGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
     for (let i = 0; i < 24; i++) {
       const mat = teleMaterial();
@@ -224,14 +231,34 @@ export class Fx {
   }
 
   splat(pos: THREE.Vector3, size: number, color: THREE.ColorRepresentation = PAL.ink) {
-    const d = this.decals.find((x) => !x.active) ?? this.decals.reduce((a, b) => (a.t > b.t ? a : b));
-    d.active = true; d.t = 0;
-    d.mat.color.set(color);
-    d.mat.opacity = 0.85;
-    d.mesh.position.set(pos.x, 0.03 + Math.random() * 0.01, pos.z);
-    d.mesh.rotation.y = Math.random() * Math.PI * 2;
-    d.mesh.scale.set(size, 1, size);
-    d.mesh.visible = true;
+    const i = this.decalNext;
+    this.decalNext = (this.decalNext + 1) % this.decals.length;
+    const d = this.decals[i];
+    d.active = true; d.t = 0; d.x = pos.x; d.z = pos.z; d.size = size; d.rot = Math.random() * Math.PI * 2;
+    d.life = color === PAL.ink ? 18 : 9;
+    this.decalMesh.setColorAt(i, tmpC.set(color));
+    if (this.decalMesh.instanceColor) this.decalMesh.instanceColor.needsUpdate = true;
+    this.decalDirty = true;
+  }
+
+  // Black ink jet in the direction of a hit, with drops that land and stain the floor.
+  inkSpray(pos: THREE.Vector3, dir: THREE.Vector3, power = 1) {
+    const ink = tmpC.set(PAL.ink).clone();
+    const gloss = new THREE.Color('#1c3a4a');
+    const v = new THREE.Vector3();
+    const n = Math.round(9 * power);
+    for (let i = 0; i < n; i++) {
+      v.copy(dir).multiplyScalar(9 + Math.random() * 12 * power);
+      v.x += (Math.random() - 0.5) * 7; v.z += (Math.random() - 0.5) * 7;
+      v.y = 3 + Math.random() * 7;
+      this.solid.spawn(pos, v, i % 4 === 0 ? gloss : ink, 0.22 + Math.random() * 0.32 * power, 0.7 + Math.random() * 0.6, 30, 0.6, true);
+    }
+    const drops = 1 + Math.round(Math.random() * 2 * power);
+    for (let i = 0; i < drops; i++) {
+      const d = 1 + Math.random() * 3.2 * power;
+      v.set(pos.x + dir.x * d + (Math.random() - 0.5) * 1.4, 0, pos.z + dir.z * d + (Math.random() - 0.5) * 1.4);
+      this.splat(v, 0.55 + Math.random() * 1.1 * power);
+    }
   }
 
   telegraphCircle(pos: THREE.Vector3, radius: number, dur: number, hold = 0.12): Telegraph {
@@ -304,12 +331,26 @@ export class Fx {
       a.mat.uniforms.head.value = Math.min(1, k * 1.2);
       a.mat.uniforms.fade.value = k < 1 ? 1 : 1 - (k - 1) / 0.6;
     }
-    for (const d of this.decals) {
+    let anyDecal = this.decalDirty;
+    for (let i = 0; i < this.decals.length; i++) {
+      const d = this.decals[i];
       if (!d.active) continue;
       d.t += dt;
-      if (d.t > 9) { d.active = false; d.mesh.visible = false; continue; }
-      if (d.t > 7) d.mat.opacity = 0.85 * (9 - d.t) / 2;
+      let k = 1;
+      if (d.t < 0.09) k = (d.t / 0.09) * 1.15;
+      else if (d.t < 0.18) k = 1.15 - (d.t - 0.09) / 0.09 * 0.15;
+      if (d.t > d.life - 2) k *= Math.max(0, (d.life - d.t) / 2);
+      if (d.t > d.life) { d.active = false; k = 0; }
+      if (d.t < 0.2 || d.t > d.life - 2.05) {
+        tmpO.position.set(d.x, d.y, d.z);
+        tmpO.rotation.set(0, d.rot, 0);
+        tmpO.scale.set(d.size * k, 1, d.size * k);
+        tmpO.updateMatrix();
+        this.decalMesh.setMatrixAt(i, tmpO.matrix);
+        anyDecal = true;
+      }
     }
+    if (anyDecal) { this.decalMesh.instanceMatrix.needsUpdate = true; this.decalDirty = false; }
     for (const t of this.teles) {
       if (t.done) continue;
       t.t += dt;

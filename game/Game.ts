@@ -19,10 +19,11 @@ import { Director } from './systems/Director';
 import { Dialogue } from './systems/Dialogue';
 import { Finales } from './systems/Finales';
 import { buildStage, StageBuild, PropInstance, ARENA_RADIUS } from './stages';
+import { DIFFICULTIES, DiffDef } from './difficulty';
 import { audio } from './audio/audio';
 import { music } from './audio/music';
 import { PAL, NUANCE_MULT, NUANCE_NAMES, nuanceOf } from './palette';
-import { BOSS_DEATH, BOSS_INTRO, HERO_BARKS, STAGE_INTRO, VICTORY_LINES, Line, CARNAGE_BARKS, ON_BEAT_WORDS, KILL_WORDS } from './data/dialogues';
+import { BOSS_DEATH, BOSS_INTRO, HERO_BARKS, STAGE_INTRO, VICTORY_LINES, Line, CARNAGE_BARKS, ON_BEAT_WORDS, KILL_WORDS, TEACHER_STAMPS, FALL_TAUNTS, MISS_TAUNTS } from './data/dialogues';
 
 export interface GameCallbacks {
   onStageClear(run: RunState, stats: StageStats): void;
@@ -82,6 +83,11 @@ export class Game {
   cutscene = false;
   paused = false;
   difficulty: number;
+  diff: DiffDef;
+  bossHpMul = 1;
+  mobile = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
+  private lastMiss = 0;
+  private lastLens = -9;
   enemySpeedMul = 1;
   tagSalt = 0;
   post = { uHurt: 0, uAberration: 0, uImpact: 0, uDark: 0, uCarnage: 0, uDesat: 0, uBeat: 0 };
@@ -122,8 +128,10 @@ export class Game {
     this.run = { ...run };
     this.stageNum = run.stage;
     this.stageScoreStart = run.score;
-    this.difficulty = 1 + (run.stage - 1) * 0.12;
-    this.quota = 40 + run.stage * 10;
+    this.diff = DIFFICULTIES[settings.difficulty] ?? DIFFICULTIES.facile;
+    this.bossHpMul = this.diff.bossHp;
+    this.difficulty = 1 + (run.stage - 1) * 0.1;
+    this.quota = Math.round((40 + run.stage * 10) * this.diff.quota);
     const q = parseInt(new URLSearchParams(location.search).get('quota') ?? '', 10);
     if (q > 0) this.quota = q;
     const others = CHARACTERS.filter((c) => c !== run.character);
@@ -134,6 +142,17 @@ export class Game {
     this.scene.background = new THREE.Color(this.stage.def.bg);
     this.scene.fog = new THREE.Fog(this.stage.def.fog, this.stage.def.fogNear, this.stage.def.fogFar);
     this.props = this.stage.props.map((p) => ({ ...p, alive: true, hits: 0, lastTag: -1, shakeT: 0, baseRot: p.object.rotation.clone() }));
+    // Carnage mood: darker stage, the neon and the ink do the lighting.
+    this.stage.group.traverse((o) => {
+      const l = o as THREE.Light;
+      if ((l as THREE.HemisphereLight).isHemisphereLight) l.intensity *= 0.38;
+      else if ((l as THREE.DirectionalLight).isDirectionalLight) l.intensity *= 0.5;
+      else if ((l as THREE.PointLight).isPointLight) l.intensity *= 1.25;
+      const m = (o as THREE.Mesh).material as THREE.MeshToonMaterial | undefined;
+      if (m && (m as THREE.MeshToonMaterial).emissiveMap) m.emissiveIntensity = (m.emissiveIntensity ?? 1) * 0.55;
+    });
+    (this.scene.background as THREE.Color).multiplyScalar(0.55);
+    (this.scene.fog as THREE.Fog).color.multiplyScalar(0.55);
 
     this.width = container.clientWidth;
     this.height = container.clientHeight;
@@ -145,7 +164,8 @@ export class Game {
 
     this.scene.add(this.fx.group);
     this.hero = new Hero(this, run.character);
-    this.hero.lives = run.lives;
+    this.hero.maxLives = this.diff.lives;
+    this.hero.lives = Math.min(run.lives, this.diff.lives);
     this.scene.add(this.hero.root);
     this.enemies = new Enemies(this);
     this.scene.add(this.enemies.group);
@@ -441,7 +461,7 @@ export class Game {
       audio.play(o.crit ? 'crit' : heavy ? 'hitHeavy' : 'hit', { volume: Math.min(1.2, 0.7 + hits * 0.08) });
       this.shake(heavy ? 0.4 : 0.18, heavy ? 0.42 : 0.14, o.heavy ? 10 : o.crit ? 7 : o.finisher ? 7 : 4);
       this.input.rumble(heavy ? 0.7 : 0.3, heavy ? 0.6 : 0.3, heavy ? 140 : 60);
-      if (o.heavy) { this.cam.addRoll((Math.random() < 0.5 ? -1 : 1) * 0.06); if (hits >= 5) this.impactFrames(1); }
+      if (o.heavy) { this.cam.addRoll((Math.random() < 0.5 ? -1 : 1) * 0.06); if (hits >= 5) this.impactFrames(1); if (hits >= 3) this.lensInk(1); }
       if (o.crit) this.impactFrames(1);
       if (onBeat) this.onBeatHit();
     } else if (hits > 0) {
@@ -557,7 +577,28 @@ export class Game {
     }
   }
 
-  onHeroHurt() {
+  lensInk(strength = 1, cooldown = 1.6) {
+    if (this.time - this.lastLens < cooldown) return;
+    this.lastLens = this.time;
+    this.overlay.screenSplat(strength);
+  }
+
+  stamp(lines: string[]) {
+    this.hud.set('stamp', { id: Date.now() + Math.random(), text: lines[Math.floor(Math.random() * lines.length)] });
+  }
+
+  onHeroMiss() {
+    if (this.time - this.lastMiss < 4 || Math.random() > 0.35) return;
+    this.lastMiss = this.time;
+    const e = this.enemies.nearest(this.hero.pos, 16);
+    if (e && !e.bubble) {
+      const text = MISS_TAUNTS[Math.floor(Math.random() * MISS_TAUNTS.length)];
+      e.bubble = this.overlay.bubble(text, () => (e.alive ? this.enemies.headPos(e, new THREE.Vector3()) : null), 1.4, 'enemy', 32);
+    }
+  }
+
+  onHeroHurt(silentStamp = false) {
+    if (!silentStamp) this.stamp(TEACHER_STAMPS);
     audio.play('stringSnap');
     audio.play('hurt');
     this.post.uHurt = 1;
@@ -573,9 +614,16 @@ export class Game {
   }
 
   onHeroFell() {
+    this.stamp(FALL_TAUNTS);
+    if (!this.diff.fallCostsLife) {
+      audio.play('out', { pitch: 0.7 });
+      this.setCombo(0);
+      this.hero.respawn();
+      return;
+    }
     this.hero.lives = Math.max(0, this.hero.lives - 1);
     this.hero.damageTaken++;
-    this.onHeroHurt();
+    this.onHeroHurt(true);
     if (this.hero.lives <= 0) { this.hero.die(); return; }
     this.hero.respawn();
   }

@@ -16,12 +16,15 @@ export interface KeyBindings {
 
 export type Action = keyof KeyBindings;
 
+export type Difficulty = 'facile' | 'normal' | 'carnage';
+
 export interface GameSettings {
   master: number;
   music: number;
   sfx: number;
   shake: boolean;
   flashes: boolean;
+  difficulty: Difficulty;
   keys: KeyBindings;
 }
 

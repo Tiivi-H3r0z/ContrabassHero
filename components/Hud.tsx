@@ -121,6 +121,7 @@ export const Hud: React.FC<{ store: HudStore; portraits: Portraits; settings: Ga
           {[0, 1, 2, 3].map((k) => <i key={k} className={s.beat % 4 === k ? 'on' : ''} />)}
         </div>
       )}
+      {s.stamp && <div className="hud-stamp" key={s.stamp.id}><b>{s.stamp.text}</b></div>}
       {s.finalePrompt && !s.finale && !d?.blocking && (
         <div className="finale-prompt"><b>Finale</b><span>{keyOf('heavy')} · EXÉCUTER</span></div>
       )}

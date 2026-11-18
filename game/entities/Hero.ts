@@ -6,8 +6,11 @@ import { Rig } from '../models/builder';
 import { HERO_COLORS, PAL } from '../palette';
 import { audio } from '../audio/audio';
 import { clamp01, inQuad, outQuad, Squash, strikeCurve } from '../core/anim';
+import { chooseMove, FINISH_WORDS, FlowMove, MOVES } from './flowMoves';
+import type { Enemy } from './Enemies';
+import { music } from '../audio/music';
 
-export type HeroState = 'move' | 'attack' | 'heavy' | 'heavyRelease' | 'dash' | 'dashStrike' | 'smash' | 'hurt' | 'fall' | 'constricted' | 'dead';
+export type HeroState = 'move' | 'flow' | 'attack' | 'heavy' | 'heavyRelease' | 'dash' | 'dashStrike' | 'smash' | 'hurt' | 'fall' | 'constricted' | 'dead';
 
 interface Step { dur: number; at: number; arc: number; range: number; dmg: number; kb: number; launch: number; anim: 'sweepR' | 'sweepL' | 'overhead' | 'spin'; guard?: boolean }
 
@@ -70,6 +73,11 @@ export class Hero {
   attackTag = 0;
   invulnerableSpecial = false;
   speedBoost = 1;
+  flow = { enemy: null as Enemy | null, boss: false, move: MOVES.jab as FlowMove, lunge: false, t: 0, lungeDur: 0, from: new THREE.Vector3(), to: new THREE.Vector3(), hitsDone: 0, queued: false, speed: 1 };
+  private flowChain = 0;
+  private lastFlowAt = -9;
+  private lastMoveId = '';
+  private lastWordAt = -9;
   sq = new Squash(300, 14);
   fwd = new Squash(240, 12);
   lean = 0;
@@ -100,7 +108,7 @@ export class Hero {
     if (!this.vulnerable()) return false;
     this.lives = Math.max(0, this.lives - dmg);
     this.damageTaken += dmg;
-    this.iframes = 1.3;
+    this.iframes = this.game.diff.iframes;
     this.sq.set(0.4);
     this.fwd.set(-0.35);
     const away = this.pos.clone().sub(from).setY(0);
@@ -175,6 +183,216 @@ export class Hero {
     this.animate(dt);
   }
 
+  // ---------- Flow combat: lunge from teacher to teacher, contextual moves ----------
+  private targetable(e: Enemy) {
+    return e.alive && e.state !== 'dying' && e.state !== 'fall' && e.state !== 'flat' && e.state !== 'stake' && !(e.state === 'spawn' && e.y < 0);
+  }
+
+  private pickTarget(md: THREE.Vector3): { enemy: Enemy | null; boss: boolean; pos: THREE.Vector3; radius: number } | null {
+    const g = this.game;
+    const hasDir = md.lengthSq() > 0.01;
+    const dirA = hasDir ? Math.atan2(md.x, md.z) : this.facing;
+    const cur = this.flow.enemy;
+    if (!hasDir && cur && this.targetable(cur) && cur.pos.distanceTo(this.pos) < 4.5 && g.time - this.lastFlowAt < 1) {
+      return { enemy: cur, boss: false, pos: cur.pos, radius: cur.radius };
+    }
+    let best: { enemy: Enemy | null; boss: boolean; pos: THREE.Vector3; radius: number } | null = null;
+    let bestScore = Infinity;
+    const consider = (pos: THREE.Vector3, radius: number, enemy: Enemy | null, boss: boolean) => {
+      const dx = pos.x - this.pos.x, dz = pos.z - this.pos.z;
+      const d = Math.hypot(dx, dz) - radius;
+      if (d > 11) return;
+      let da = Math.atan2(dx, dz) - dirA;
+      while (da > Math.PI) da -= Math.PI * 2;
+      while (da < -Math.PI) da += Math.PI * 2;
+      const ad = Math.abs(da);
+      if (hasDir && ad > 1.25 && d > 2.5) return;
+      const score = d + ad * (hasDir ? 7 : 1.5) + (enemy && enemy === cur ? -1 : 0);
+      if (score < bestScore) { bestScore = score; best = { enemy, boss, pos, radius }; }
+    };
+    for (const e of g.enemies.list) if (this.targetable(e)) consider(e.pos, e.radius, e, false);
+    const b = g.boss;
+    if (b && !b.dead && b.reachable() && b.phase !== 'enter') consider(b.pos, b.radius, null, true);
+    return best;
+  }
+
+  flowAttack(md: THREE.Vector3, launcher = false) {
+    const g = this.game;
+    const tgt = this.pickTarget(md);
+    this.flowChain = g.time - this.lastFlowAt < 1.1 ? this.flowChain + 1 : 0;
+    this.lastFlowAt = g.time;
+    let dist = 0, crowd = 0, airborne = false, shielded = false, lethal = false;
+    const toT = new THREE.Vector3();
+    if (tgt) {
+      toT.subVectors(tgt.pos, this.pos).setY(0);
+      dist = Math.max(0, toT.length() - tgt.radius);
+      if (toT.lengthSq() > 0.001) toT.normalize(); else toT.set(Math.sin(this.facing), 0, Math.cos(this.facing));
+      for (const o of g.enemies.list) if (this.targetable(o) && o.pos.distanceToSquared(tgt.pos) < 25) crowd++;
+      const e = tgt.enemy;
+      if (e) {
+        airborne = e.y > 0.8;
+        lethal = e.hp <= MOVES.smash.dmg * this.mods.dmg * 1.05 && e.hp < e.maxHp * 0.6;
+        if (e.kind === 'cpe' && e.state !== 'stun' && e.state !== 'air') {
+          const toHero = Math.atan2(this.pos.x - e.pos.x, this.pos.z - e.pos.z);
+          let d = Math.abs(toHero - e.facing) % (Math.PI * 2);
+          if (d > Math.PI) d = Math.PI * 2 - d;
+          shielded = d < 1.1;
+        }
+      } else if (g.boss) {
+        lethal = g.boss.hp < g.boss.maxHp * 0.05;
+      }
+    }
+    const move = chooseMove({ airborne, shielded, lethalSmash: lethal, crowd, lungeDist: dist, chain: this.flowChain, last: this.lastMoveId, launcher, hasTarget: !!tgt });
+    this.lastMoveId = move.id;
+    const f = this.flow;
+    f.move = move;
+    f.enemy = tgt?.enemy ?? null;
+    f.boss = !!tgt?.boss;
+    f.t = 0;
+    f.hitsDone = 0;
+    f.queued = false;
+    f.speed = music.beatError() < 0.11 ? 1.2 : 1;
+    this.spinExtra = 0;
+    this.state = 'flow';
+    this.stateT = 0;
+    if (tgt) this.facing = Math.atan2(toT.x, toT.z);
+    else if (md.lengthSq() > 0.01) this.facing = Math.atan2(md.x, md.z);
+    if (tgt && dist > move.reach) {
+      f.lunge = true;
+      f.from.copy(this.pos);
+      const stand = tgt.radius + 1.15;
+      f.to.copy(tgt.pos).addScaledVector(toT, -stand).setY(0);
+      const R = g.arenaRadius - 1;
+      if (f.to.length() > R) f.to.setLength(R);
+      f.lungeDur = Math.min(0.2, Math.max(0.07, dist / 50));
+      this.iframes = Math.max(this.iframes, f.lungeDur + 0.08);
+      this.fwd.set(0.6);
+      this.sq.set(-0.2);
+      audio.play('dash', { pitch: 1.25, volume: 0.7 });
+      g.fx.ring(this.pos, this.color, 0.3, 2, 0.18, 2.2);
+    } else {
+      f.lunge = false;
+      this.sq.hit(3.2);
+      this.vel.set(Math.sin(this.facing), 0, Math.cos(this.facing)).multiplyScalar(5);
+      this.flowStartSwing();
+    }
+  }
+
+  private flowStartSwing() {
+    const mv = this.flow.move;
+    if (mv.hop) { this.vy = mv.hop; this.y = Math.max(this.y, 0.01); }
+    audio.play(mv.heavy ? 'swingHeavy' : 'swing', { pitch: 0.9 + Math.random() * 0.3 });
+  }
+
+  private tryCounter(): boolean {
+    const g = this.game;
+    const threat = g.enemies.findThreat(this.pos, 7.5);
+    if (!threat) return false;
+    const toT = new THREE.Vector3().subVectors(threat.pos, this.pos).setY(0);
+    const d = Math.max(0, toT.length() - threat.radius);
+    toT.normalize();
+    threat.state = 'stun';
+    threat.t = 0.9;
+    threat.vel.set(0, 0, 0);
+    const f = this.flow;
+    f.move = MOVES.contre;
+    f.enemy = threat;
+    f.boss = false;
+    f.t = 0;
+    f.hitsDone = 0;
+    f.queued = false;
+    f.speed = 1;
+    this.lastMoveId = 'contre';
+    this.state = 'flow';
+    this.stateT = 0;
+    this.facing = Math.atan2(toT.x, toT.z);
+    this.iframes = Math.max(this.iframes, 0.6);
+    if (d > MOVES.contre.reach) {
+      f.lunge = true;
+      f.from.copy(this.pos);
+      f.to.copy(threat.pos).addScaledVector(toT, -(threat.radius + 1.1)).setY(0);
+      f.lungeDur = 0.08;
+    } else { f.lunge = false; this.flowStartSwing(); }
+    g.slowmo(0.3, 0.35);
+    g.cam.addPunch(0.4);
+    g.overlay.pop('CONTRE !', this.pos.clone().setY(5), 'goth');
+    audio.play('block', { pitch: 1.4 });
+    audio.play('crit');
+    return true;
+  }
+
+  private updateFlow(dt: number, md: THREE.Vector3) {
+    const g = this.game;
+    const inp = g.input;
+    const f = this.flow;
+    const mv = f.move;
+    f.t += dt * f.speed * this.mods.atk;
+    if (f.lunge) {
+      const k = Math.min(1, f.t / f.lungeDur);
+      this.pos.lerpVectors(f.from, f.to, outQuad(k));
+      this.vel.set(0, 0, 0);
+      g.fx.burst(this.pos.clone().setY(1.5), this.color, 3, 3, { size: 0.55, life: 0.22, grav: 0 });
+      if (Math.random() < 0.6) g.fx.debris(this.pos.clone().setY(1), [PAL.ink], 1, 4, 0.3);
+      if (inp.pressed('attack')) f.queued = true;
+      if (k >= 1) {
+        f.lunge = false;
+        f.t = 0;
+        this.sq.set(0.28);
+        this.flowStartSwing();
+      }
+      return;
+    }
+    const at = mv.at, dur = mv.dur;
+    this.vel.multiplyScalar(Math.pow(0.004, dt));
+    while (f.hitsDone < mv.hits.length && f.t >= at * mv.hits[f.hitsDone]) { this.flowHit(f.hitsDone === mv.hits.length - 1); f.hitsDone++; }
+    const holding = g.diff.holdCombo && inp.held('attack');
+    if ((inp.pressed('attack') || holding) && f.t > at * 0.45) f.queued = true;
+    if (f.t > at && inp.pressed('dash')) { if (!this.tryCounter() && this.dashCd <= 0) this.startDash(md); return; }
+    if (f.t > at && inp.pressed('jump') && this.y <= 0.01) { this.state = 'move'; this.vy = 17; this.y = 0.01; this.sq.set(-0.42); audio.play('jump'); return; }
+    if (f.t > at && inp.pressed('heavy')) { if (!g.finales.tryStart()) this.flowAttack(md, true); return; }
+    if (f.t >= dur) {
+      if (f.queued) this.flowAttack(md);
+      else { this.state = 'move'; this.spinExtra = 0; }
+    }
+  }
+
+  private flowHit(last: boolean) {
+    const g = this.game;
+    const f = this.flow;
+    const mv = f.move;
+    const crit = Math.random() < (mv.heavy ? 0.18 : 0.1);
+    const fwd = new THREE.Vector3(Math.sin(this.facing), 0, Math.cos(this.facing));
+    let center: THREE.Vector3;
+    if (mv.anim === 'spin') center = this.pos.clone();
+    else if (f.enemy && this.targetable(f.enemy)) center = f.enemy.pos.clone();
+    else if (f.boss && g.boss && !g.boss.dead) center = this.pos.clone().addScaledVector(fwd, Math.min(this.pos.distanceTo(g.boss.pos), g.boss.radius + 1.5));
+    else center = this.pos.clone().addScaledVector(fwd, 2.2);
+    const radius = mv.aoe > 0 ? mv.aoe : 1.9;
+    const dmg = mv.dmg * this.mods.dmg * this.dmgBoost * (crit ? 1.8 : 1) * (this.altKind === 'lion' ? 1.6 : 1);
+    const hits = g.heroStrike({ center, radius, arc: 7, facing: this.facing, dmg, kb: mv.kb * (this.altKind === 'lion' ? 1.4 : 1), launch: mv.launch, guard: !!mv.guard, tag: this.newTag(), crit, color: this.color, heavy: !!mv.heavy && last, finisher: !!mv.finisher, style: mv.style });
+    this.fwd.hit(mv.heavy ? 8 : 6);
+    this.sq.hit(-4);
+    const scale = 0.85 + (mv.heavy ? 0.25 : 0);
+    if (mv.anim === 'spin') {
+      g.fx.slash(this.pos, this.facing, this.color, 1.15, 0.22, 1, 1.2);
+      g.fx.slash(this.pos, this.facing + Math.PI, this.color, 1.15, 0.22, 1, 1.2);
+      g.fx.ring(this.pos, this.color, 0.5, mv.aoe, 0.3, 2.6);
+    } else if (mv.anim === 'slam') {
+      g.fx.ring(center, this.color, 0.5, mv.aoe + 1, 0.3, 3);
+      g.fx.splat(center, 3.5, PAL.void3);
+    } else if (mv.anim === 'uppercut' || mv.anim === 'juggle') {
+      g.fx.burst(center.clone().setY(this.y + 1.5), this.color, 14, 16, { size: 0.4, life: 0.35, up: 2.5, grav: 4 });
+    } else {
+      const dir = mv.anim === 'sweepL' ? -1 : 1;
+      g.fx.slash(this.pos, this.facing - Math.PI / 2, this.color, scale, 0.14, dir, mv.anim === 'overhead' ? 0.7 : mv.anim === 'kick' ? 0.9 : 1.35);
+    }
+    if (hits > 0 && last && mv.word && g.time - this.lastWordAt > 0.7) {
+      this.lastWordAt = g.time;
+      g.overlay.pop(mv.finisher ? FINISH_WORDS[this.char] : mv.word, this.pos.clone().setY(this.y + 4.6), 'beat');
+    }
+    if (hits === 0 && last) g.onHeroMiss();
+  }
+
   private moveDir(out: THREE.Vector3) {
     const inp = this.game.input;
     const s = Math.SQRT1_2;
@@ -228,10 +446,11 @@ export class Hero {
         this.vel.z += (md.z * baseSpeed - this.vel.z) * k;
         if (moving) this.turnTo(Math.atan2(md.x, md.z), dt, 22);
         if (grounded && inp.pressed('jump')) this.jump();
+        else if (inp.pressed('dash') && this.tryCounter()) { /* counter */ }
         else if (inp.pressed('dash') && this.dashCd <= 0) this.startDash(md);
-        else if (inp.pressed('attack')) {
+        else if (inp.pressed('attack') || (g.diff.holdCombo && inp.held('attack') && grounded)) {
           if (!grounded && !this.airAttacked) this.startSmash();
-          else if (grounded) this.startStep(this.comboWindow > 0 ? this.comboStep : 0);
+          else if (grounded) this.flowAttack(md);
         } else if (inp.pressed('heavy') && grounded && g.finales.tryStart()) {
           // finale started
         } else if (inp.pressed('heavy') && grounded) {
@@ -240,6 +459,9 @@ export class Hero {
         }
         break;
       }
+      case 'flow':
+        this.updateFlow(dt, md);
+        break;
       case 'attack': {
         const st = STEPS[this.comboStep];
         const dur = st.dur / this.mods.atk;
@@ -247,7 +469,7 @@ export class Hero {
         this.vel.multiplyScalar(Math.pow(0.002, dt));
         if (moving && this.stateT < at) this.turnTo(Math.atan2(md.x, md.z), dt, 30);
         if (!this.struck && this.stateT >= at) { this.struck = true; this.strike(st); }
-        if (inp.pressed('attack') && this.stateT > at * 0.6) this.queued = true;
+        if ((inp.pressed('attack') || (g.diff.holdCombo && inp.held('attack'))) && this.stateT > at * 0.6) this.queued = true;
         if (inp.pressed('dash') && this.dashCd <= 0 && this.struck) { this.startDash(md); break; }
         if (inp.pressed('jump') && this.struck) { this.jump(); break; }
         if (this.stateT >= dur) {
@@ -270,6 +492,7 @@ export class Hero {
         if (moving) this.turnTo(Math.atan2(md.x, md.z), dt, 10);
         if (Math.random() < 0.5) g.fx.burst(this.pos.clone().setY(1 + Math.random() * 2), this.color, 1, 4 + this.heavyCharge * 6, { size: 0.25, life: 0.3, grav: -6 });
         if (this.heavyCharge >= 1 && this.stateT < 0.75 + dt) { audio.play('specialReady', { pitch: 1.5, volume: 0.6 }); g.fx.ring(this.pos, this.color, 0.5, 3, 0.25, 3); }
+        if (!inp.held('heavy') && this.stateT < 0.2) { this.heavyCharge = 0; this.flowAttack(md, true); break; }
         if (!inp.held('heavy') || this.stateT > 1.6) { this.state = 'heavyRelease'; this.stateT = 0; this.struck = false; }
         break;
       }
@@ -417,8 +640,17 @@ export class Hero {
     this.queued = false;
     this.struck = false;
     const md = this.moveDir(new THREE.Vector3());
-    if (md.lengthSq() > 0.01) this.facing = Math.atan2(md.x, md.z);
-    else {
+    const cone = this.game.diff.aimAssist;
+    const t0 = this.game.autoTarget(this.pos, 8);
+    if (md.lengthSq() > 0.01) {
+      this.facing = Math.atan2(md.x, md.z);
+      if (t0 && cone > 0) {
+        let d = Math.atan2(t0.x - this.pos.x, t0.z - this.pos.z) - this.facing;
+        while (d > Math.PI) d -= Math.PI * 2;
+        while (d < -Math.PI) d += Math.PI * 2;
+        if (Math.abs(d) < cone) this.facing += d;
+      }
+    } else {
       const t = this.game.autoTarget(this.pos, 9);
       if (t) this.facing = Math.atan2(t.x - this.pos.x, t.z - this.pos.z);
     }
@@ -435,7 +667,8 @@ export class Hero {
     const dmg = st.dmg * this.mods.dmg * this.dmgBoost * (crit ? 1.8 : 1) * (this.altKind === 'lion' ? 1.6 : 1);
     const range = this.reach + st.range;
     const style = st.anim === 'overhead' ? (this.char === 'armand' || this.char === 'pierre' ? 'stake' : 'flat') : 'pop';
-    g.heroStrike({ center: this.pos, radius: range, arc: st.arc, facing: this.facing, dmg, kb: st.kb * (this.altKind === 'lion' ? 1.4 : 1), launch: st.launch, guard: !!st.guard, tag: this.newTag(), crit, color: this.color, heavy: st.anim === 'spin', finisher: st.anim === 'spin', style });
+    const hits = g.heroStrike({ center: this.pos, radius: range, arc: st.arc, facing: this.facing, dmg, kb: st.kb * (this.altKind === 'lion' ? 1.4 : 1), launch: st.launch, guard: !!st.guard, tag: this.newTag(), crit, color: this.color, heavy: st.anim === 'spin', finisher: st.anim === 'spin', style });
+    if (hits === 0) g.onHeroMiss();
     const scale = range / 4.6;
     if (st.anim === 'spin') {
       g.fx.slash(this.pos, this.facing, this.color, scale, 0.22, 1, 1.2);
@@ -528,6 +761,82 @@ export class Hero {
     if (P.weapon2) P.weapon2.rotation.set(0.9, 0, 0);
 
     switch (this.state) {
+      case 'flow': {
+        const f = this.flow;
+        const mv = f.move;
+        if (f.lunge) {
+          P.torso.rotation.x = 0.95;
+          P.head.rotation.x = -0.55;
+          P.armR.rotation.set(-Math.PI * 1.1, 0, -0.2);
+          P.armL.rotation.set(1.3, 0, 0.5);
+          P.weapon.rotation.set(Math.PI, 0, 0);
+          P.legL.rotation.x = -1.1; P.legR.rotation.x = 0.9;
+          this.fwd.x = Math.max(this.fwd.x, 0.45);
+          break;
+        }
+        const v = strikeCurve(f.t, mv.at, mv.dur, 0.3, 0.16);
+        const vp = Math.max(0, Math.min(1.1, v));
+        P.legL.rotation.x = 0.45; P.legR.rotation.x = -0.55;
+        if (P.weapon2) P.weapon2.rotation.set(Math.PI, 0, 0);
+        switch (mv.anim) {
+          case 'sweepR':
+          case 'sweepL': {
+            const d = mv.anim === 'sweepR' ? 1 : -1;
+            P.torso.rotation.y = d * (1.25 - 2.8 * v);
+            P.hips.rotation.y = -P.torso.rotation.y * 0.3;
+            P.head.rotation.y = -P.torso.rotation.y * 0.4;
+            P.torso.rotation.x = 0.2;
+            P.armR.rotation.set(-Math.PI / 2, 0, d * 0.25);
+            P.weapon.rotation.set(Math.PI, 0, 0);
+            P.armL.rotation.set(-0.6, 0, 0.9 * d);
+            if (P.weapon2) P.armL.rotation.set(-Math.PI / 2 + 0.3, 0, 0);
+            break;
+          }
+          case 'overhead':
+          case 'slam':
+            P.armR.rotation.set(-Math.PI * 1.1 + 2.7 * v, 0, 0);
+            P.armL.rotation.set(-Math.PI * 1.1 + 2.5 * v, 0, 0.25);
+            P.weapon.rotation.set(Math.PI, 0, 0);
+            P.torso.rotation.x = -0.4 + 1.0 * v;
+            P.hips.position.y = 0.95 - 0.22 * vp;
+            if (mv.anim === 'slam') { P.legL.rotation.x = -1.0 * (1 - vp); P.legR.rotation.x = -1.0 * (1 - vp); }
+            break;
+          case 'spin':
+            this.spinExtra = -Math.PI * 2 * Math.min(1, Math.max(-0.08, v));
+            P.armR.rotation.set(-Math.PI / 2, 0, -0.5);
+            P.armL.rotation.set(-Math.PI / 2, 0, 0.5);
+            P.weapon.rotation.set(Math.PI, 0, 0);
+            P.torso.rotation.x = 0.25;
+            break;
+          case 'uppercut':
+          case 'juggle':
+            P.armR.rotation.set(-0.1 - 3.0 * vp, 0, -0.2);
+            P.armL.rotation.set(-0.3 - 2.0 * vp, 0, 0.4);
+            P.weapon.rotation.set(Math.PI, 0, 0);
+            P.torso.rotation.x = 0.45 - 1.0 * v;
+            P.hips.position.y = 0.95 + 0.3 * vp;
+            P.legL.rotation.x = -0.3 * vp; P.legR.rotation.x = 0.4 * vp;
+            break;
+          case 'kick':
+            P.legR.rotation.x = -1.8 * Math.min(1, vp);
+            P.legL.rotation.x = 0.55;
+            P.torso.rotation.x = -0.6 * Math.min(1, vp);
+            P.armR.rotation.set(-1.2, 0, -0.9);
+            P.armL.rotation.set(-1.0, 0, 0.9);
+            P.weapon.rotation.set(Math.PI * 0.7, 0, 0);
+            break;
+          case 'flurry': {
+            const w = Math.sin(f.t * 48);
+            P.torso.rotation.y = w * 0.9;
+            P.torso.rotation.x = 0.25;
+            P.armR.rotation.set(-Math.PI / 2, 0, w * 0.3);
+            P.armL.rotation.set(-Math.PI / 2 + 0.4, 0, -w * 0.3);
+            P.weapon.rotation.set(Math.PI, 0, 0);
+            break;
+          }
+        }
+        break;
+      }
       case 'attack': {
         const st = STEPS[this.comboStep];
         const at = st.at / this.mods.atk, dur = st.dur / this.mods.atk;

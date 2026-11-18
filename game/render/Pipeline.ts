@@ -36,7 +36,7 @@ void main(){
   col = mix(vec3(lum), col, 1.12 + uCarnage * 0.25);
   col = mix(col, vec3(dot(col, vec3(0.299,0.587,0.114))), clamp(uDesat, 0.0, 1.0) * 0.85);
   float vig = smoothstep(0.85, 0.25, d);
-  col *= mix(0.55, 1.0, vig);
+  col *= mix(0.32, 1.0, vig);
   col = mix(col, col * 0.18, uDark * smoothstep(0.15, 0.7, d));
   col += uHurtColor * uHurt * smoothstep(0.3, 0.8, d) * 0.9;
   col += vec3(1.0, 0.24, 0.55) * uCarnage * smoothstep(0.35, 0.85, d) * (0.45 + 0.55 * uBeat);

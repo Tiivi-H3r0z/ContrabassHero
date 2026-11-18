@@ -1,4 +1,5 @@
 import type { Action, KeyBindings } from '../../types';
+import { touch } from './touch';
 
 export const DEFAULT_KEYS: KeyBindings = {
   up: ['w', 'z', 'arrowup'],
@@ -32,6 +33,7 @@ export class Input {
   private pressedKeys = new Set<string>();
   private padPrev: boolean[] = [];
   private padNow: boolean[] = [];
+  private touchPressed = new Set<Action>();
   moveX = 0;
   moveY = 0;
   usingPad = false;
@@ -59,6 +61,8 @@ export class Input {
   // Call once per fixed tick.
   poll() {
     this.pressedKeys = this.pending;
+    this.touchPressed = touch.consume();
+    if (touch.pause) { touch.pause = false; this.pendingPause = true; }
     this.pending = new Set();
     this.pausePressed = this.pendingPause;
     this.pendingPause = false;
@@ -85,7 +89,8 @@ export class Input {
     if (this.heldKey('right')) kx += 1;
     if (this.heldKey('up')) ky += 1;
     if (this.heldKey('down')) ky -= 1;
-    if (px || py) { this.moveX = px; this.moveY = py; }
+    if (touch.active && (touch.mx || touch.my)) { this.moveX = touch.mx; this.moveY = touch.my; }
+    else if (px || py) { this.moveX = px; this.moveY = py; }
     else { const l = Math.hypot(kx, ky) || 1; this.moveX = kx / l; this.moveY = ky / l; }
   }
 
@@ -97,11 +102,12 @@ export class Input {
   private heldKey(a: Action) { return this.keys[a].some((k) => this.down.has(k)); }
 
   held(a: Action) {
-    if (this.heldKey(a)) return true;
+    if (this.heldKey(a) || touch.held.has(a)) return true;
     return (PAD[a] ?? []).some((i) => this.padNow[i]);
   }
 
   pressed(a: Action) {
+    if (this.touchPressed.has(a)) return true;
     if (this.keys[a].some((k) => this.pressedKeys.has(k))) return true;
     return (PAD[a] ?? []).some((i) => this.padNow[i] && !this.padPrev[i]);
   }

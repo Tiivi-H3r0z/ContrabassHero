@@ -40,20 +40,26 @@ varying vec3 vEmis;
 varying float vFlash;
 #ifdef USE_INSTANCING
 attribute float iFlash;
-#endif`)
+attribute float iInk;
+#endif
+varying float vInk;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
 ${hasEmis ? 'vEmis = emis;' : 'vEmis = vec3(0.0);'}
 #ifdef USE_INSTANCING
 vFlash = iFlash;
+vInk = iInk;
 #else
 vFlash = 0.0;
+vInk = 0.0;
 #endif`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
 varying vec3 vEmis;
 varying float vFlash;
+varying float vInk;
 uniform float uFlash;`)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
+gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.012, 0.025, 0.035), clamp(vInk, 0.0, 0.82));
 gl_FragColor.rgb += vEmis;
 gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.6), clamp(max(vFlash, uFlash), 0.0, 1.0));`);
   };

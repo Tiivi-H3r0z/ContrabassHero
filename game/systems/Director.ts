@@ -34,7 +34,7 @@ export class Director {
     const g = this.game;
     const s = g.stageNum;
     if (g.phase === 'boss') return 5 + s;
-    return Math.min(52 + s * 7, 24 + s * 4 + Math.floor(this.elapsed / 2.2));
+    return Math.round(Math.min(52 + s * 7, 24 + s * 4 + Math.floor(this.elapsed / 2.2)) * g.diff.maxAlive * (g.mobile ? 0.6 : 1));
   }
 
   update(dt: number) {

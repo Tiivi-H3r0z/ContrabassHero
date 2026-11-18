@@ -40,6 +40,7 @@ export interface HudState {
   beat: number;
   finale: FinaleView | null;
   finalePrompt: boolean;
+  stamp: { id: number; text: string } | null;
 }
 
 type Listener = () => void;
