@@ -42,6 +42,17 @@ export default defineConfig({
     host: '0.0.0.0',
   },
   plugins: [react(), musicStudio()],
+  build: {
+    rollupOptions: {
+      output: {
+        // no spaces / accents in asset URLs (music files are named by hand)
+        assetFileNames: (a) => {
+          const name = (a.names?.[0] ?? 'asset').replace(/\.[^.]+$/, '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '-').replace(/-+/g, '-').toLowerCase();
+          return `assets/${name}-[hash][extname]`;
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
