@@ -42,6 +42,10 @@ export interface Enemy {
   killStyle: KillStyle;
   credited: boolean;
   bubble: number;
+  leanX: number;
+  leanZ: number;
+  leanVX: number;
+  leanVZ: number;
 }
 
 export interface HitInfo {
@@ -140,7 +144,7 @@ export class Enemies {
       hp: s.hp * hpMul, maxHp: s.hp * hpMul, radius: s.radius * (mutant ? 1.35 : 1), mass: s.mass * (mutant ? 1.8 : 1),
       state: 'spawn', t: 0, flash: 0, facing: Math.atan2(-at.x, -at.z), phase: Math.random() * 10,
       hitTags: new Map(), cd: (1 + Math.random() * 1.5) * this.game.diff.enemyCooldown, mutant, scaleMul: mutant ? 1.35 : 1, buffed: false,
-      dotTimer: 0, contaminated: 0, squash: -0.3, sqv: 0, spin: 0, lungeDir: new THREE.Vector3(), killStyle: 'pop', credited: false, bubble: 0,
+      dotTimer: 0, contaminated: 0, squash: -0.3, sqv: 0, spin: 0, lungeDir: new THREE.Vector3(), killStyle: 'pop', credited: false, bubble: 0, leanX: 0, leanZ: 0, leanVX: 0, leanVZ: 0,
     };
     if (mode === 'edge') {
       e.y = -5; e.vy = 17; e.squash = -0.5;
@@ -190,6 +194,14 @@ export class Enemies {
     e.hp -= dmg;
     e.killStyle = h.style ?? 'pop';
     e.flash = 1;
+    if (e.hp > 0 && h.dir.lengthSq() > 0.01) {
+      // knocked back: the body snaps away from the blow, overshoots, comes back
+      const fwd = h.dir.x * Math.sin(e.facing) + h.dir.z * Math.cos(e.facing);
+      const right = h.dir.x * Math.cos(e.facing) - h.dir.z * Math.sin(e.facing);
+      const imp = (blocked ? 5 : h.crit || dmg >= 50 ? 19 : 14) / Math.sqrt(e.mass);
+      e.leanVX += fwd * imp;
+      e.leanVZ -= right * imp;
+    }
     e.squash = Math.max(e.squash, 0.3);
     e.sqv += 6;
     const k = kb / e.mass;
@@ -314,6 +326,10 @@ export class Enemies {
       e.t += dt;
       e.phase += dt;
       e.flash = Math.max(0, e.flash - dt * 7);
+      e.leanVX += (-260 * e.leanX - 15 * e.leanVX) * dt;
+      e.leanVZ += (-260 * e.leanZ - 15 * e.leanVZ) * dt;
+      e.leanX = Math.max(-0.9, Math.min(0.9, e.leanX + e.leanVX * dt));
+      e.leanZ = Math.max(-0.9, Math.min(0.9, e.leanZ + e.leanVZ * dt));
       e.sqv += (-230 * e.squash - 11 * e.sqv) * dt;
       e.squash = Math.max(-0.55, Math.min(0.6, e.squash + e.sqv * dt));
       e.cd -= dt;
@@ -517,12 +533,14 @@ export class Enemies {
       const b = this.batches[e.kind];
       const walking = e.state === 'chase';
       const gait = walking ? Math.abs(Math.sin(e.phase * 9 + e.id)) : 0;
-      tmpO.position.set(e.pos.x, e.y + gait * 0.32, e.pos.z);
+      const jit = e.flash * e.flash * 0.16;
+      tmpO.position.set(e.pos.x + (Math.random() - 0.5) * jit, e.y + gait * 0.32, e.pos.z + (Math.random() - 0.5) * jit);
       let rx = 0, rz = walking ? Math.sin(e.phase * 9 + e.id) * 0.16 : 0;
       if (e.state === 'windup') rx = -0.45 * outQuad(e.t / 0.4) - Math.sin(e.t * 40) * 0.04;
       if (e.state === 'lunge') rx = 0.55;
       if (e.state === 'recover') rx = 0.55 * (1 - outQuad(e.t / 0.3));
-      if (e.state === 'stun') rx = -0.3;
+      if (e.state === 'stun') rx = -0.12;
+      if (e.state !== 'air' && e.state !== 'fall') { rx += e.leanX; rz += e.leanZ; }
       if (e.state === 'air' || e.state === 'fall') { rx = e.phase * e.spin; rz = e.phase * e.spin * 0.6; }
       tmpO.rotation.set(rx, e.facing, rz, 'YXZ');
       let sc = e.scaleMul;
@@ -564,6 +582,22 @@ export class Enemies {
         a.scale.set(s, 1, s);
       }
     });
+  }
+
+  // Drop after a build-up: every grounded teacher is thrown in the air by the bass.
+  dropHop() {
+    for (const e of this.list) {
+      if (!e.alive || e.y > 0.1 || (e.state !== 'chase' && e.state !== 'recover' && e.state !== 'stun' && e.state !== 'windup')) continue;
+      e.state = 'air'; e.y = 0.05; e.vy = 9 + Math.random() * 4; e.spin = (Math.random() - 0.5) * 4; e.squash = -0.4; e.sqv = 0;
+    }
+  }
+
+  // Every teacher bounces on the kick (they dance whether they like it or not).
+  onKick(k: number) {
+    for (const e of this.list) {
+      if (!e.alive || (e.state !== 'chase' && e.state !== 'recover' && e.state !== 'stun')) continue;
+      e.sqv += 4.5 * k;
+    }
   }
 
   // Closest teacher about to strike the hero (melee windup or lunge), for counters.

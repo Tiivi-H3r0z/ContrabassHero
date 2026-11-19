@@ -24,6 +24,7 @@ export interface GameSettings {
   sfx: number;
   shake: boolean;
   flashes: boolean;
+  beatFx: boolean;
   difficulty: Difficulty;
   keys: KeyBindings;
 }

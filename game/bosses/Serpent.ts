@@ -476,6 +476,8 @@ export class Serpent extends ArenaBoss {
     }
   }
 
+  protected leanMul = 0.35;
+
   protected applyTransform() {
     super.applyTransform();
     const P = this.rig.pivots;

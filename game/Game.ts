@@ -18,6 +18,7 @@ import { Events } from './systems/Events';
 import { Director } from './systems/Director';
 import { Dialogue } from './systems/Dialogue';
 import { Finales } from './systems/Finales';
+import { GrooveDriver } from './systems/GrooveDriver';
 import { buildStage, StageBuild, PropInstance, ARENA_RADIUS } from './stages';
 import { DIFFICULTIES, DiffDef } from './difficulty';
 import { audio } from './audio/audio';
@@ -72,6 +73,7 @@ export class Game {
   pickups: Pickups;
   events: Events;
   director: Director;
+  groove!: GrooveDriver;
   dialogue: Dialogue;
   finales: Finales;
   boss: Boss | null = null;
@@ -94,16 +96,33 @@ export class Game {
   private lastKillWord = 0;
   private lastBeatPop = 0;
   private beatUnsub: () => void = () => {};
+  private kickUnsub: () => void = () => {};
+  private dropUnsub: () => void = () => {};
+  private tension = 0;
+  private kick = 0;
+  private lastKickRing = -9;
+  private neons: { mat: THREE.MeshBasicMaterial; base: THREE.Color }[] = [];
+  private bloomBase = 0.9;
+  private warp = 0;
+  private warpRot = 0;
+  private warpSign = 1;
+  private stageLights: { light: THREE.Light; base: number }[] = [];
+  private floorMats: { mat: THREE.MeshToonMaterial; base: number }[] = [];
   stageNum: number;
   radioMate: CharacterType;
 
   run: RunState;
   autoplay = new URLSearchParams(location.search).has('auto');
+  // Music studio preview: the arena, the hero and a frozen crowd of teachers dancing on the kicks.
+  readonly preview = new URLSearchParams(location.search).has('preview');
   private autoT = 0;
   private debugEl: HTMLDivElement | null = null;
   private forcedTicks = parseInt(new URLSearchParams(location.search).get('ticks') ?? '0', 10) || 0;
   stageKills = 0;
   quota: number;
+  // the boss comes on a point of the music (marker set in the music studio); ?quota=N keeps the kill quota
+  readonly timed = !new URLSearchParams(location.search).has('quota');
+  private bossProgress = 0;
   combo = 0;
   comboTimer = 0;
   maxCombo = 0;
@@ -179,6 +198,7 @@ export class Game {
     this.director = new Director(this);
     this.dialogue = new Dialogue(this);
     this.finales = new Finales(this);
+    this.groove = new GrooveDriver(this);
 
     this.hero.respawn();
     this.hero.y = 14;
@@ -192,11 +212,37 @@ export class Game {
     if (new URLSearchParams(location.search).has('debug')) { this.debugEl = document.createElement('div'); this.debugEl.style.cssText = 'position:absolute;left:8px;bottom:120px;z-index:99;color:#fff;font:12px monospace;background:#000a;padding:4px'; container.appendChild(this.debugEl); }
     music.play('stage', run.stage);
     music.setIntensity(0);
-    this.dialogue.play(STAGE_INTRO[run.stage] ?? [], false);
+    if (this.preview) this.setupPreview();
+    else this.dialogue.play(STAGE_INTRO[run.stage] ?? [], false);
     this.beatUnsub = music.onBeat((n) => this.onMusicBeat(n));
+    this.kickUnsub = music.onKick((k) => this.onKick(k));
+    this.dropUnsub = music.onDrop(() => this.onDrop());
+    this.stage.group.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined;
+      if (m && (m as THREE.MeshBasicMaterial).isMeshBasicMaterial && m.toneMapped === false && !this.neons.some((n) => n.mat === m)) this.neons.push({ mat: m, base: m.color.clone() });
+    });
+    this.bloomBase = this.pipeline.bloom.strength;
+    this.stage.group.traverse((o) => {
+      const l = o as THREE.Light;
+      if (l.isLight) this.stageLights.push({ light: l, base: l.intensity });
+      const m = (o as THREE.Mesh).material as THREE.MeshToonMaterial | undefined;
+      if (m && m.emissiveMap && !this.floorMats.some((f) => f.mat === m)) this.floorMats.push({ mat: m, base: m.emissiveIntensity });
+    });
 
     this.last = performance.now();
     this.raf = requestAnimationFrame(this.frame);
+  }
+
+  private setupPreview() {
+    this.settings = { ...this.settings, beatFx: true };
+    this.enemies.freeze = true;
+    const n = 11;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + 0.3;
+      const r = 6.5 + (i % 3) * 2.2;
+      const e = this.enemies.spawn(this.director.pick(), new THREE.Vector3(Math.sin(a) * r, 0, Math.cos(a) * r), 'ground');
+      if (e) e.facing = Math.atan2(-e.pos.x, -e.pos.z);
+    }
   }
 
   private initHud() {
@@ -230,6 +276,7 @@ export class Game {
   }
 
   updateSettings(s: GameSettings) {
+    if (this.preview) s = { ...s, beatFx: true };
     this.settings = s;
     this.input.keys = s.keys;
     this.cam.shakeEnabled = s.shake;
@@ -279,6 +326,7 @@ export class Game {
       this.syncHud();
       return;
     }
+    if (!this.preview) this.groove.tick(FIXED);
     if (this.hitstop > 0) { this.hitstop--; return; }
 
     this.time += dt;
@@ -293,10 +341,12 @@ export class Game {
     this.projectiles.update(dt);
     this.pickups.update(dt);
     this.updateProps(dt);
-    if (this.phase === 'horde' || this.phase === 'boss') this.director.update(dt);
-    this.events.update(dt);
-    this.updatePhase(dt);
-    this.finales.scan(dt);
+    if (!this.preview) {
+      if (this.phase === 'horde' || this.phase === 'boss') this.director.update(dt);
+      this.events.update(dt);
+      this.updatePhase(dt);
+      this.finales.scan(dt);
+    }
     this.fx.update(dt);
     this.stage.update(dt, this.time);
 
@@ -341,6 +391,26 @@ export class Game {
     u.uCarnage.value = this.post.uCarnage;
     u.uDesat.value = this.post.uDesat;
     u.uBeat.value = this.post.uBeat;
+    this.kick = Math.max(0, this.kick - dt * 6.5);
+    const kk = this.settings.beatFx ? this.kick * this.kick : 0;
+    u.uKick.value = kk;
+    const rp = music.rampProgress();
+    this.tension += ((rp >= 0 ? rp : 0) - this.tension) * Math.min(1, dt * 5);
+    const tt = this.settings.beatFx ? Math.pow(this.tension, 1.3) : 0;
+    u.uTension.value = tt;
+    this.cam.tension = tt;
+    if (tt > 0.05) this.cam.kick(tt * 0.22, false);
+    this.warp = Math.max(0, this.warp - dt * 7.5);
+    const ww = this.settings.beatFx ? this.warp * this.warp * (3 - 2 * this.warp) : 0;
+    u.uWarp.value = ww;
+    u.uWarpRot.value = this.settings.shake ? this.warpRot * ww : 0;
+    this.pipeline.bloom.strength = this.bloomBase + kk * 1.1 + ww * 0.4;
+    const tierGlow = 1 + (this.groove?.groove.tier ?? 0) * 0.14;
+    for (const n of this.neons) n.mat.color.copy(n.base).multiplyScalar((1 + kk * 1.6) * tierGlow);
+    for (const l of this.stageLights) l.light.intensity = l.base * (1 + kk * 1.7 + ww * 0.8);
+    for (const f of this.floorMats) f.mat.emissiveIntensity = f.base * (1 + kk * 2.6);
+    // the island itself thumps on main kicks (pivot on the floor plane, so actors stay grounded)
+    this.stage.group.scale.set(1 + ww * 0.025, 1 - ww * 0.16, 1 + ww * 0.025);
     u.uImpact.value = this.impact > 0 && this.settings.flashes ? 1 : 0;
     if (this.impact > 0) this.impact--;
     this.pipeline.render(this.time);
@@ -373,7 +443,49 @@ export class Game {
     if (this.paused || this.disposed) return;
     this.post.uBeat = 1;
     this.hud.set('beat', n);
+    if (!this.cutscene) this.groove?.onBeat();
     if (this.nuance >= 5 && !this.cutscene) this.cam.addPunch(0.06);
+  }
+
+  // Visual punch on every kick of the music (level-wide, can be turned off in the options).
+  private onKick(k: number) {
+    if (this.paused || this.disposed || !this.settings.beatFx) return;
+    // drop sections hit harder, breaks only breathe
+    const sec = music.section();
+    k = Math.min(1.25, k * (sec === 'drop' ? 1.3 : sec === 'break' ? 0.8 : 1));
+    this.kick = Math.max(this.kick, k);
+    const main = k >= 0.72;
+    this.cam.addPunch((main ? 0.09 : 0.04) + 0.08 * k);
+    this.cam.kick(k, main);
+    if (main) {
+      this.warp = Math.max(this.warp, Math.min(1, k));
+      this.warpSign *= -1;
+      this.warpRot = this.warpSign * 0.022 * k;
+    }
+    if (!this.cutscene) {
+      this.enemies.onKick(k);
+      if (this.hero.state === 'move' && this.hero.y <= 0.01) this.hero.sq.hit(1.2 * k);
+      if (k > 0.85 && this.time - this.lastKickRing > 0.3) {
+        this.lastKickRing = this.time;
+        this.fx.ring(this.hero.pos, PAL.power, 1, 9 + 4 * k, 0.32, 1.2 + k);
+      }
+    }
+  }
+
+  // End of a build-up: the release. Everything hits at once.
+  private onDrop() {
+    if (this.paused || this.disposed || !this.settings.beatFx) return;
+    this.tension = 0;
+    this.kick = 1.25;
+    this.warp = 1;
+    this.cam.kick(1.2, true);
+    this.shake(0.9, 0.8, 0);
+    this.impactFrames(1, true);
+    if (!this.cutscene) {
+      for (let i = 0; i < 3; i++) this.fx.ring(this.hero.pos, i === 1 ? PAL.combo : PAL.power, 1 + i, 18 + i * 10, 0.45 + i * 0.12, 2.6);
+      this.fx.burst(this.hero.pos.clone().setY(1), PAL.power, 40, 24, { size: 0.45, life: 0.6, up: 1.2 });
+      this.enemies.dropHop();
+    }
   }
 
   private onBeatHit() {
@@ -400,6 +512,8 @@ export class Game {
     this.post.uAberration = Math.max(this.post.uAberration, punch);
   }
   private lastImpact = -9;
+  // a press in rhythm must answer right away
+  breakHitstop() { this.hitstop = 0; }
   impactFrames(n: number, force = false) {
     if (!force && this.time - this.lastImpact < 0.9) return;
     this.lastImpact = this.time;
@@ -413,8 +527,9 @@ export class Game {
   // ---------- Combat ----------
   heroStrike(o: StrikeOpts): number {
     let hits = 0;
-    const onBeat = !o.quietSlash && music.beatError() < 0.11;
+    const onBeat = !o.quietSlash && music.beatError() < Math.min(0.11, music.beatInterval() * 0.2);
     if (onBeat) o = { ...o, dmg: o.dmg * 1.3 };
+    if (this.groove) o = { ...o, dmg: o.dmg * this.groove.dmgMul() };
     const hero = this.hero;
     const half = o.arc / 2;
     const inArc = (x: number, z: number) => {
@@ -673,9 +788,22 @@ export class Game {
     this.overlay.bubble(lines[Math.floor(Math.random() * lines.length)], () => b.pos.clone().setY(b.y + b.height + 1), 3.2, 'boss');
   }
 
+  // Timed stages: the boss arrives on the boss marker of the track (procedural tracks: after 100 s).
+  private bossDue() {
+    const c = music.clock(), b = music.bossTime();
+    if (c && b) {
+      this.bossProgress = Math.max(0, Math.min(1, (c.t - b.from) / Math.max(1, b.at - b.from)));
+      this.hud.set('bossIn', Math.max(0, Math.ceil(b.at - c.t)));
+      return c.t >= b.at;
+    }
+    this.bossProgress = Math.min(1, this.stageTime / 100);
+    this.hud.set('bossIn', Math.max(0, Math.ceil(100 - this.stageTime)));
+    return this.stageTime >= 100;
+  }
+
   // ---------- Flow ----------
   private updatePhase(_dt: number) {
-    if (this.phase === 'horde' && this.stageKills >= this.quota) {
+    if (this.phase === 'horde' && (this.timed ? this.bossDue() : this.stageKills >= this.quota)) {
       this.phase = 'bossIntro';
       this.phaseT = 0;
       this.events.stop();
@@ -769,7 +897,7 @@ export class Game {
     let pts = 0;
     pts += d === 0 ? 3 : d === 1 ? 2 : d <= 3 ? 1 : 0;
     pts += c >= 80 ? 3 : c >= 50 ? 2 : c >= 25 ? 1 : 0;
-    pts += this.stageTime < 150 ? 1 : 0;
+    pts += this.stageKills >= this.quota ? 1 : 0;
     return pts >= 6 ? 'S' : pts >= 4 ? 'A' : pts >= 3 ? 'B' : pts >= 1 ? 'C' : 'D';
   }
 
@@ -782,6 +910,7 @@ export class Game {
     h.set('nuance', this.nuance);
     h.set('special', Math.round(this.hero.special * 50) / 50);
     h.set('kills', Math.min(this.stageKills, this.quota));
+    h.set('bossProgress', this.timed ? Math.round(this.bossProgress * 200) / 200 : -1);
     h.set('hurt', Math.round(this.post.uHurt * 10) / 10);
     if (this.boss) {
       h.set('bossName', this.boss.name);
@@ -793,6 +922,9 @@ export class Game {
 
   dispose() {
     this.beatUnsub();
+    this.kickUnsub();
+    this.dropUnsub();
+    this.groove.dispose();
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     this.resizeObs.disconnect();

@@ -88,7 +88,7 @@ export class Overlay {
   }
 
   // Typewriter speech bubble. Returns a handle id (0 if no slot) usable with cut().
-  bubble(text: string, follow: () => THREE.Vector3 | null, seconds = 2.2, kind: 'enemy' | 'boss' | 'hero' = 'enemy', speed = 34): number {
+  bubble(text: string, follow: () => THREE.Vector3 | null, seconds = 2.2, kind: 'enemy' | 'boss' | 'hero' | 'ouch' = 'enemy', speed = 34): number {
     const b = this.bubbles.find((x) => !x.active);
     if (!b) return 0;
     b.active = true;

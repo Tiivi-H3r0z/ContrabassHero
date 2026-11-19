@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { TIERS, TIER_POWER, GROOVE_MAX } from '../game/systems/groove';
 import type { HudStore } from '../game/core/hudStore';
 import { HERO_COLORS, NUANCES, NUANCE_NAMES, PAL } from '../game/palette';
 import type { Portraits } from '../game/portraits';
@@ -68,8 +69,13 @@ export const Hud: React.FC<{ store: HudStore; portraits: Portraits; settings: Ga
           <div className="hud-tr">
             <div className="hud-stage">STAGE {s.stage}</div>
             {!s.bossActive && <>
-              <div className="hud-hint" style={{ marginTop: 4 }}>{s.quota - s.kills > 0 ? `${s.quota - s.kills} PROFS AVANT LE BOSS` : 'LE BOSS ARRIVE'}</div>
-              <div className="hud-kills"><i style={{ width: `${(s.kills / s.quota) * 100}%` }} /></div>
+              {s.bossProgress >= 0 ? <>
+                <div className="hud-hint" style={{ marginTop: 4 }}>{s.bossIn > 0 ? `LE BOSS DANS ${Math.floor(s.bossIn / 60)}:${String(s.bossIn % 60).padStart(2, '0')} · ${s.kills} PROFS` : 'LE BOSS ARRIVE'}</div>
+                <div className="hud-kills"><i style={{ width: `${s.bossProgress * 100}%` }} /></div>
+              </> : <>
+                <div className="hud-hint" style={{ marginTop: 4 }}>{s.quota - s.kills > 0 ? `${s.quota - s.kills} PROFS AVANT LE BOSS` : 'LE BOSS ARRIVE'}</div>
+                <div className="hud-kills"><i style={{ width: `${(s.kills / s.quota) * 100}%` }} /></div>
+              </>}
             </>}
             <div className="hud-score">{s.score.toLocaleString('fr-FR')}</div>
           </div>
@@ -78,6 +84,13 @@ export const Hud: React.FC<{ store: HudStore; portraits: Portraits; settings: Ga
             <div className="lb">COUPS</div>
             {s.nuance >= 6 ? <div className="dyn goth">Carnage<small>×8 · tempo +15 %</small></div> : <div className="dyn">{NUANCES[s.nuance]}<small>{NUANCE_NAMES[s.nuance]}</small></div>}
             <div className="decay"><i style={{ width: `${s.comboTimer * 100}%` }} /></div>
+          </div>
+          <div className={`hud-groove t${s.grooveTier}`} style={{ opacity: s.groove > 0.004 || s.grooveTier > 0 ? 1 : 0.4 }}>
+            <div className="gt">{TIERS[s.grooveTier].name}<small>GROOVE ×{TIER_POWER[s.grooveTier]}</small></div>
+            <div className="gg"><i style={{ width: `${s.groove * 100}%` }} />{TIERS.slice(1).map((t) => <b key={t.name} style={{ left: `${(t.at / GROOVE_MAX) * 100}%` }} />)}</div>
+            {s.grooveStill && <div className="gstill">BOUGE ! <small>dash · groove ÷2</small></div>}
+            <div className="gm" key={s.grooveMotif}>{s.grooveMotif}</div>
+            <div className="gb">{s.grooveBuffs.split('|').filter(Boolean).map((b) => { const [n, k] = b.split(':'); return <span key={n}><b>{n}</b><i style={{ width: `${+k * 100}%` }} /></span>; })}</div>
           </div>
           {s.bossActive && (
             <div className={`bossbar ${s.bossInvulnerable ? 'inv' : ''}`}>

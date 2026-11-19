@@ -27,6 +27,8 @@ export const BOSS_INFO: Record<BossId, { name: string; title: string; hp: number
   serpent: { name: 'LE SERPENT', title: "L'Étreinte", hp: 4600 },
 };
 
+const BOSS_OUCH = ['EUH—', 'EUH— EUH—', 'EUH— EUH— EUH—', 'EUH— EUH— EUH—', 'HEU— EUH—', 'EUH ?!'];
+
 export const BOSS_ORDER: BossId[] = ['directeur', 'aigle', 'kawik', 'tatoo', 'taupe', 'ninja_pain', 'serpent'];
 
 // Base class for bosses. Subclasses build `rig` in their constructor and implement think().
@@ -55,6 +57,15 @@ export abstract class Boss {
   private lastSquash = 0;
   private hitTags = new Set<number>();
   private tauntCd = 6;
+  // hit reaction: lean spring (local pitch / roll), jitter, grunt bubble
+  protected leanMul = 1;
+  private leanX = 0;
+  private leanZ = 0;
+  private leanVX = 0;
+  private leanVZ = 0;
+  private jitter = 0;
+  private ouchCd = 0;
+  private ouchBubble = 0;
   name: string;
   title: string;
 
@@ -108,6 +119,7 @@ export abstract class Boss {
     this.hp -= h.dmg;
     this.flash = 1;
     this.sqv += 3.5;
+    this.react(h, head);
     this.stagger += h.dmg;
     this.vel.addScaledVector(h.dir, h.kb * 0.08);
     this.game.overlay.pop(String(Math.round(h.dmg)), head, h.crit ? 'crit' : 'dmg');
@@ -115,6 +127,24 @@ export abstract class Boss {
     this.game.onBossHit(this, h.dmg, !!h.crit);
     if (this.hp <= 0) { this.hp = 0; this.die(); }
     return true;
+  }
+
+  private react(h: BossHit, head: THREE.Vector3) {
+    const big = h.heavy || h.crit;
+    const f = this.facing;
+    const fwd = h.dir.x * Math.sin(f) + h.dir.z * Math.cos(f);
+    const right = h.dir.x * Math.cos(f) - h.dir.z * Math.sin(f);
+    const imp = (big ? 7.5 : 4.2) * this.leanMul;
+    this.leanVX += fwd * imp;
+    this.leanVZ -= right * imp;
+    this.jitter = big ? 1 : 0.7;
+    this.game.fx.inkSpray(head, h.dir.lengthSq() > 0.01 ? h.dir : new THREE.Vector3(0, 0, 1), big ? 2 : 1.3);
+    if (this.ouchCd <= 0 && !(this.ouchBubble && this.game.overlay.isActive(this.ouchBubble))) {
+      this.ouchCd = 1.3 + Math.random() * 0.9;
+      const text = BOSS_OUCH[Math.floor(Math.random() * BOSS_OUCH.length)];
+      this.ouchBubble = this.game.overlay.bubble(text, () => (this.dead ? null : this.pos.clone().setY(this.y + this.height + 0.6)), 0.5, 'ouch', 90);
+      audio.play('bossGrunt', { pitch: 0.85 + Math.random() * 0.3 });
+    }
   }
 
   die() {
@@ -139,6 +169,12 @@ export abstract class Boss {
     this.squash = Math.max(-0.5, Math.min(0.7, this.squash + this.sqv * dt));
     this.lastSquash = this.squash;
     this.stagger = Math.max(0, this.stagger - dt * 60);
+    this.ouchCd -= dt;
+    this.jitter = Math.max(0, this.jitter - dt * 6);
+    this.leanVX += (-170 * this.leanX - 13 * this.leanVX) * dt;
+    this.leanVZ += (-170 * this.leanZ - 13 * this.leanVZ) * dt;
+    this.leanX = Math.max(-0.45, Math.min(0.45, this.leanX + this.leanVX * dt));
+    this.leanZ = Math.max(-0.45, Math.min(0.45, this.leanZ + this.leanVZ * dt));
     this.tauntCd -= dt;
     if (this.tauntCd <= 0 && !this.dead && this.phase !== 'enter') {
       this.tauntCd = 9 + Math.random() * 6;
@@ -204,8 +240,10 @@ export abstract class Boss {
   }
 
   protected applyTransform() {
-    this.root.position.set(this.pos.x, this.y, this.pos.z);
-    this.root.rotation.y = this.facing;
+    const j = this.jitter * this.jitter * 0.22;
+    this.root.position.set(this.pos.x + (Math.random() - 0.5) * j, this.y, this.pos.z + (Math.random() - 0.5) * j);
+    if (this.dead) this.root.rotation.y = this.facing;
+    else this.root.rotation.set(this.leanX, this.facing, this.leanZ, 'YXZ');
     const s = this.squash;
     this.rig.root.scale.set(1 + s * 0.3, 1 - s * 0.3, 1 + s * 0.3);
     if (!this.dead) this.rig.mat.userData.flash.value = this.flash;

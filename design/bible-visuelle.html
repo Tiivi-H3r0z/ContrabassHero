@@ -283,6 +283,80 @@ footer{padding-block:50px 70px;color:var(--fog);font-size:14px}
 .todo li{break-inside:avoid;margin:0 0 10px}
 @media(max-width:700px){.todo{columns:1}}
 @media(max-width:640px){.hero-cta .btn{font-size:18px;padding:10px 16px 8px}.hero-cap{display:none}.hud-mini .n{font-size:56px}.hud-mini .d{font-size:26px}.hero-shade{background:linear-gradient(0deg,var(--ink) 0%,color-mix(in srgb,var(--ink) 70%,transparent) 55%,color-mix(in srgb,var(--ink) 30%,transparent) 100%)}}
+
+/* ---------- groove ---------- */
+.gb{margin-top:34px;padding:0;display:grid;grid-template-columns:minmax(0,1fr) 320px;background:var(--ink);overflow:hidden}
+@media(max-width:980px){.gb{grid-template-columns:minmax(0,1fr)}}
+.gb-main{display:flex;flex-direction:column;min-width:0;border-right:var(--stroke) solid var(--ink)}
+.gb-bar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:14px 16px;background:var(--void-2);border-bottom:var(--stroke) solid var(--ink)}
+.gb-bar label{font-family:var(--f-ui);font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--fog);margin-right:6px}
+.seg2{display:inline-flex;border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.seg2 button{font-family:var(--f-ui);font-weight:700;font-size:12px;padding:6px 10px;background:var(--void-3);color:var(--fog);border:0;border-right:2px solid var(--ink);cursor:pointer}
+.seg2 button:last-child{border-right:0}
+.seg2 button.on{background:var(--power);color:var(--ink)}
+.gb-cal{font-family:var(--f-ui);font-weight:700;font-size:12px;padding:6px 10px;border:2px solid var(--ink);background:var(--reward);color:var(--ink);box-shadow:3px 3px 0 var(--ink);cursor:pointer}
+.gb-calv{font-family:var(--f-ui);font-size:12px;color:var(--fog);margin-left:6px}
+.gb-calbox{position:absolute;inset:0;display:grid;place-items:center;text-align:center;background:rgba(1,6,10,.82);z-index:3;font-family:var(--f-ui);color:var(--fog)}
+.gb-calbox b{display:block;font-family:var(--f-shout);font-size:34px;color:var(--reward);text-shadow:3px 3px 0 var(--ink);margin-bottom:8px}
+.gb-calbox .dots{display:flex;gap:8px;justify-content:center;margin-top:14px}
+.gb-calbox .dots i{width:16px;height:16px;border:2px solid var(--reward);border-radius:50%}
+.gb-calbox .dots i.on{background:var(--reward)}
+.gb-play{font-size:18px!important;padding:8px 18px 6px!important;margin-left:auto}
+.gb-stage{position:relative;height:clamp(300px,42vh,430px);background:radial-gradient(120% 90% at 50% 100%,var(--void-3),var(--ink) 70%)}
+.gb-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.gb-pops{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.gb-pop{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);white-space:nowrap;font-family:var(--f-shout);font-size:clamp(28px,4.4vw,54px);color:var(--bone);-webkit-text-stroke:5px var(--ink);paint-order:stroke fill;text-shadow:5px 5px 0 var(--ink);animation:gbPop 1.1s cubic-bezier(.34,1.56,.64,1) forwards}
+.gb-pop.goth{font-family:var(--f-goth);font-size:clamp(46px,7vw,92px);-webkit-text-stroke:0;text-shadow:5px 5px 0 var(--ink),0 0 30px currentColor}
+.gb-pop small{display:block;font-family:var(--f-ui);font-size:14px;letter-spacing:.2em;-webkit-text-stroke:0;text-shadow:2px 2px 0 var(--ink);text-align:center;margin-top:4px}
+@keyframes gbPop{0%{opacity:0;transform:translate(-50%,-50%) scale(2.2) rotate(-6deg)}14%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(-3deg)}75%{opacity:1;transform:translate(-50%,-62%) scale(1) rotate(-3deg)}100%{opacity:0;transform:translate(-50%,-80%) scale(.9) rotate(-3deg)}}
+.gb-help{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--fog);font-family:var(--f-ui);font-size:15px;pointer-events:none}
+.gb-help b{display:block;font-family:var(--f-shout);font-size:30px;color:var(--bone);text-shadow:3px 3px 0 var(--ink);margin-bottom:8px}
+.gb-side{display:flex;flex-direction:column;gap:16px;padding:16px;background:var(--void-2)}
+.gb-tiername{font-family:var(--f-goth);font-size:44px;line-height:1;text-shadow:4px 4px 0 var(--ink);color:var(--bone);transition:color .2s}
+.gb-gauge{position:relative;height:22px;border:2px solid var(--ink);background:var(--ink);box-shadow:3px 3px 0 var(--ink);margin-top:10px}
+.gb-gauge i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--power),var(--ui) 40%,var(--combo) 75%,var(--reward));transition:width .08s}
+.gb-gauge b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--bone);opacity:.5}
+.gb-power{font-family:var(--f-ui);font-size:12px;color:var(--fog);margin-top:6px;letter-spacing:.06em}
+.gb-power b{color:var(--reward)}
+.gb-fam div{display:grid;grid-template-columns:72px 1fr;align-items:center;gap:8px;font-family:var(--f-ui);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.gb-fam span{height:10px;background:var(--ink);position:relative;border:1px solid var(--ink)}
+.gb-fam span i{position:absolute;left:0;top:0;bottom:0;transition:width .15s}
+.gb-fam .dom{color:var(--bone)}
+.gb-motif .name{font-family:var(--f-shout);font-size:26px;text-shadow:3px 3px 0 var(--ink);min-height:32px}
+.gb-motif .meta{font-family:var(--f-ui);font-size:12px;color:var(--fog)}
+.gb-pads{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:auto}
+.gb-pads button{font-family:var(--f-shout);font-size:18px;padding:16px 0 12px;border:var(--stroke) solid var(--ink);box-shadow:4px 4px 0 var(--ink);cursor:pointer;color:var(--ink);touch-action:manipulation}
+.gb-pads button:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+.pat{display:grid;gap:2px;margin-top:8px}
+.pat i{height:22px;background:var(--void);border:1px solid var(--ink);display:grid;place-items:center;font-style:normal;font-family:var(--f-ui);font-weight:700;font-size:11px;color:var(--ink)}
+.pat i.b{border-left:2px solid var(--fog)}
+.pat i.f{background:var(--power)}.pat i.F{background:var(--combo)}.pat i.D{background:var(--ui)}
+.pat i.loop{border-left:2px solid var(--reward)}
+.tiers{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-top:22px}
+@media(max-width:1100px){.tiers{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:640px){.tiers{grid-template-columns:minmax(0,1fr)}}
+.tier{padding:16px}
+.tier .t{font-family:var(--f-goth);font-size:30px;line-height:1;text-shadow:3px 3px 0 var(--ink)}
+.tier .at{font-family:var(--f-ui);font-size:11px;letter-spacing:.14em;color:var(--fog);text-transform:uppercase;margin:4px 0 10px}
+.tier dl{margin:0;font-size:14px;line-height:1.4}
+.tier dt{font-family:var(--f-ui);font-weight:700;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--fog);margin-top:8px}
+.tier dd{margin:0}
+.forms .panel h3{margin-bottom:6px}
+.forms .panel p{font-size:15px;color:var(--fog)}
+.forms .panel p b{color:var(--bone)}
+.combos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:22px}
+@media(max-width:960px){.combos{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.combos{grid-template-columns:minmax(0,1fr)}}
+.cmb-card{display:flex;flex-direction:column;gap:8px;padding:18px}
+.cmb-card h3{font-size:24px}
+.cmb-card .fam{align-self:flex-start;font-family:var(--f-ui);font-weight:700;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:2px 8px;border:2px solid var(--ink);color:var(--ink)}
+.cmb-card p{font-size:14.5px;line-height:1.4;color:var(--fog)}
+.cmb-card p b{color:var(--bone)}
+.cmb-card .train{margin-top:auto;align-self:flex-start;font-family:var(--f-ui);font-weight:700;font-size:12px;letter-spacing:.1em;text-transform:uppercase;padding:6px 12px;border:2px solid var(--ink);background:var(--void-3);color:var(--power);box-shadow:3px 3px 0 var(--ink);cursor:pointer}
+.cmb-card .train.on{background:var(--power);color:var(--ink)}
+.h3row{display:flex;align-items:baseline;gap:14px;margin-top:56px}
+.h3row h3{font-size:34px}
+.h3row span{font-family:var(--f-ui);color:var(--fog);font-size:14px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -290,7 +364,7 @@ footer{padding-block:50px 70px;color:var(--fog);font-size:14px}
 
 <nav class="bar" aria-label="Sommaire">
   <span class="brand">Contrabass</span>
-  <a href="#manifeste">Manifeste</a><a href="#violence">Violence</a><a href="#morts">Mises à mort</a><a href="#couleur">Couleur</a><a href="#typo">Typo</a><a href="#ressenti">Ressenti</a><a href="#dialogues">Dialogues</a><a href="#musique">Musique</a><a href="#interface">Interface</a>
+  <a href="#manifeste">Manifeste</a><a href="#violence">Violence</a><a href="#morts">Mises à mort</a><a href="#couleur">Couleur</a><a href="#typo">Typo</a><a href="#ressenti">Ressenti</a><a href="#dialogues">Dialogues</a><a href="#musique">Musique</a><a href="#groove">Groove</a><a href="#interface">Interface</a>
   <button class="mute" id="soundToggle" type="button">ACTIVER LE SON</button>
 </nav>
 
@@ -509,8 +583,65 @@ footer{padding-block:50px 70px;color:var(--fog);font-size:14px}
   </div>
 </section>
 
+<section class="wrap" id="groove">
+  <span class="eyebrow">09 · Groove</span>
+  <h2>Tape en rythme.<br><em>Deviens un monstre.</em></h2>
+  <p class="lede">Chaque frappe <b>faible</b>, <b>forte</b> ou <b>dash</b> est jugée sur la grille de la musique, à la double-croche près. Répète un motif : le jeu le reconnaît. <b>Plus la rythmique est variée, syncopée, dense, plus le Groove monte</b> : le décor s'embrase, les fantômes des compositeurs remplissent les tribunes, le héros se transforme et frappe plus fort. Taper à côté ne punit pas : ça ne compte juste pas. Répéter le même motif rapporte de moins en moins : il faut varier.</p>
+
+  <div class="panel gb" id="gb">
+    <div class="gb-main">
+      <div class="gb-bar">
+        <span><label>Musique</label><span class="seg2" id="gbSrc"></span></span>
+        <span><label>Tolérance</label><span class="seg2" id="gbTol"></span></span>
+        <span><label>Calage</label><button class="gb-cal" id="gbCal" type="button">Caler mes frappes</button> <span class="gb-calv" id="gbCalV"></span></span>
+        <button class="btn hot gb-play" id="gbPlay" type="button"><span>▶ JOUER</span></button>
+      </div>
+      <div class="gb-stage" id="gbStage">
+        <canvas id="gbCanvas"></canvas>
+        <div class="gb-pops" id="gbPops"></div>
+        <div class="gb-help" id="gbHelp"><div><b>Lance la musique, puis tape.</b><span class="kbd">ESPACE</span> faible · <span class="kbd">F</span> fort · <span class="kbd">MAJ</span> dash<br>ou les pads à droite, au doigt.</div></div>
+      </div>
+    </div>
+    <div class="gb-side">
+      <div>
+        <div class="gb-tiername" id="gbTier">Échauffement</div>
+        <div class="gb-gauge" id="gbGauge"><i></i></div>
+        <div class="gb-power" id="gbPower">Puissance <b>×1.00</b></div>
+      </div>
+      <div class="gb-fam" id="gbFam"></div>
+      <div class="gb-motif"><div class="name" id="gbMotif">—</div><div class="meta" id="gbMeta">Aucun motif répété.</div><div class="pat" id="gbPat"></div></div>
+      <div class="gb-pads">
+        <button type="button" data-sym="f" style="background:var(--power)">FAIBLE</button>
+        <button type="button" data-sym="F" style="background:var(--combo)">FORT</button>
+        <button type="button" data-sym="D" style="background:var(--ui)">DASH</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="h3row"><h3>Six paliers</h3><span>la jauge de Groove monte avec les motifs, redescend si le rythme s'arrête</span></div>
+  <div class="tiers">
+    <div class="panel tier"><div class="t" style="color:var(--fog)">Échauffement</div><div class="at">dès 0</div><dl><dt>Décor</dt><dd>Normal.</dd><dt>Tribunes</dt><dd>Vides, brouillard.</dd><dt>Héros</dt><dd>Normal.</dd><dt>Puissance</dt><dd>×1</dd></dl></div>
+    <div class="panel tier"><div class="t" style="color:var(--power)">Rythmé</div><div class="at">groove 8</div><dl><dt>Décor</dt><dd>Les dalles s'allument sur le temps.</dd><dt>Tribunes</dt><dd>Bach apparaît, hoche la perruque.</dd><dt>Héros</dt><dd>Fine aura qui bat.</dd><dt>Puissance</dt><dd>×1,1 dégâts et vitesse</dd></dl></div>
+    <div class="panel tier"><div class="t" style="color:var(--ui)">En transe</div><div class="at">groove 22</div><dl><dt>Décor</dt><dd>La faille du ciel pulse, néons ×2.</dd><dt>Tribunes</dt><dd>Vivaldi et Mozart tapent des mains.</dd><dt>Héros</dt><dd>Instrument et cheveux luisent, +5 % de taille.</dd><dt>Puissance</dt><dd>×1,2</dd></dl></div>
+    <div class="panel tier"><div class="t" style="color:var(--combo)">Virtuose</div><div class="at">groove 42</div><dl><dt>Décor</dt><dd>Colonnes de lumière, bords de l'île en feu néon.</dd><dt>Tribunes</dt><dd>Beethoven headbangue.</dd><dt>Héros</dt><dd>Première transformation selon sa forme.</dd><dt>Puissance</dt><dd>×1,35</dd></dl></div>
+    <div class="panel tier"><div class="t" style="color:var(--reward)">Maestro</div><div class="at">groove 70</div><dl><dt>Décor</dt><dd>Tuyaux d'orgue géants autour de l'arène.</dd><dt>Tribunes</dt><dd>Chopin en larmes, partitions lancées.</dd><dt>Héros</dt><dd>Deuxième forme, plus grand, particules.</dd><dt>Puissance</dt><dd>×1,5, dash plus long</dd></dl></div>
+    <div class="panel tier"><div class="t" style="color:var(--reward);text-shadow:4px 4px 0 var(--ink),0 0 24px var(--combo)">LÉGENDE</div><div class="at">groove 105</div><dl><dt>Décor</dt><dd>Tout vire or et rose, ciel en fusion.</dd><dt>Tribunes</dt><dd>Wagner arrive, Bach dirige le chaos.</dd><dt>Héros</dt><dd>Forme ultime : aura géante, cheveux dressés, +15 % de taille.</dd><dt>Puissance</dt><dd>×1,75, chaque coup fait une onde de choc</dd></dl></div>
+  </div>
+
+  <div class="h3row"><h3>Trois formes</h3><span>la transformation suit ce que tu joues le plus</span></div>
+  <div class="grid g3 forms" style="margin-top:22px">
+    <div class="panel" style="border-top:6px solid var(--ui)"><h3 style="color:var(--ui)">Éclair</h3><p><b>Joue des dashs.</b> Silhouette étirée, foudre bleue, images rémanentes. Plus rapide, les dashs blessent.</p></div>
+    <div class="panel" style="border-top:6px solid var(--combo)"><h3 style="color:var(--combo)">Colosse</h3><p><b>Joue des coups forts.</b> Muscles qui gonflent, taille, le sol craque à chaque pas. Les coups forts frappent en zone.</p></div>
+    <div class="panel" style="border-top:6px solid var(--reward)"><h3 style="color:var(--reward)">Virtuose</h3><p><b>Varie, syncope, enchaîne des motifs complexes.</b> Aura dorée, notes en orbite, instrument géant. Les coups déclenchent des effets musicaux.</p></div>
+  </div>
+
+  <div class="h3row"><h3>Le catalogue</h3><span>clique « S'entraîner » : le motif s'affiche en fantôme dans le banc d'essai</span></div>
+  <div class="combos" id="gbCombos"></div>
+  <p class="notice">Ce catalogue est lu depuis le moteur du jeu (<code>game/systems/groove.ts</code>) : la liste des coups du menu en jeu affichera exactement la même chose.</p>
+</section>
+
 <section class="wrap" id="interface">
-  <span class="eyebrow">09 · Interface</span>
+  <span class="eyebrow">10 · Interface</span>
   <h2>Des écrans <em>qui frappent.</em></h2>
   <div class="grid g2" style="margin-top:30px">
     <div class="mock hudm"><div class="bg"></div><div class="vign"></div>
@@ -526,7 +657,7 @@ footer{padding-block:50px 70px;color:var(--fog);font-size:14px}
 </section>
 
 <section class="wrap" id="suite">
-  <span class="eyebrow">10 · Dans le jeu</span>
+  <span class="eyebrow">11 · Dans le jeu</span>
   <h2>Ce qui change <em>ensuite.</em></h2>
   <ul class="todo">
     <li><b>Morts :</b> éclatement, crêpe, piquet, jonglage en pluie de notes, dents et lunettes en débris.</li>
@@ -544,5 +675,6 @@ footer{padding-block:50px 70px;color:var(--fog);font-size:14px}
 <footer class="wrap">Contrabass Hero · bible visuelle v2 « Édition Carnage » · palette Plasma froid · <a href="./palettes.html" style="color:var(--ui)">palettes</a> · <a href="./bach-test.html" style="color:var(--ui)">banc d'essai musique</a></footer>
 
 <script type="module" src="./bible.ts"></script>
+<script type="module" src="./groove-bench.ts"></script>
 </body>
 </html>

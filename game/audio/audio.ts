@@ -4,7 +4,7 @@ export type Sfx =
   | 'special_armand' | 'special_adrien' | 'special_eliot' | 'special_swan' | 'special_pierre' | 'special_audrey'
   | 'nukeAlarm' | 'explosion' | 'fart' | 'meow' | 'roar' | 'cluck' | 'egg'
   | 'chalkThrow' | 'whistle' | 'teacherDie' | 'spawn' | 'portal'
-  | 'bossRoar' | 'bossCharge' | 'bossLand' | 'bossDie' | 'telegraph' | 'lightning' | 'dig' | 'shellRoll' | 'hiss' | 'screech' | 'helicopter'
+  | 'tap' | 'bossRoar' | 'bossGrunt' | 'bossCharge' | 'bossLand' | 'bossDie' | 'telegraph' | 'lightning' | 'dig' | 'shellRoll' | 'hiss' | 'screech' | 'helicopter'
   | 'eventSiren' | 'blackout' | 'uiMove' | 'uiSelect' | 'uiBack' | 'typewriter' | 'comboUp' | 'stageClear' | 'gameOver' | 'victory';
 
 export type MusicTrack = 'menu' | 'stage' | 'boss' | 'victory' | 'gameover';
@@ -455,6 +455,20 @@ const SFX: Record<Sfx, Builder> = {
     noise(c, o, t, { a: 0.05, hold: 0.5, dur: 1.5, vol: 0.5, filter: lp(700, 150), am: { rate: 24, depth: 0.5 } }),
     tone(c, o, t, { f: 50, f2: 30, a: 0.05, hold: 0.4, dur: 1.4, vol: 0.6 }),
   ),
+  // the note you just played: a dry transient that fires on the press, before the hit lands
+  tap: (c, o, t) => mx(
+    noise(c, o, t, { a: 0.001, dur: 0.025, vol: 0.55, filter: hp(2600) }),
+    tone(c, o, t, { f: 210, f2: 70, glide: 0.05, a: 0.001, dur: 0.07, vol: 0.75 }),
+    tone(c, o, t, { type: 'square', f: 420, f2: 160, a: 0.001, dur: 0.03, vol: 0.12, filter: lp(2400) }),
+  ),
+  bossGrunt: (c, o, t) => {
+    const syl = (at: number, f: number, vol: number) => mx(
+      tone(c, o, t, { at, type: 'sawtooth', fpts: [[0, f], [0.03, f * 1.12], [0.1, f * 0.82]], a: 0.008, hold: 0.04, dur: 0.06, vol, filter: bp(620, 520, 3) }),
+      tone(c, o, t, { at, type: 'sawtooth', fpts: [[0, f], [0.03, f * 1.12], [0.1, f * 0.82]], a: 0.008, hold: 0.04, dur: 0.06, vol: vol * 0.5, filter: bp(1150, 1000, 4) }),
+      tone(c, o, t, { at, type: 'square', fpts: [[0, f / 2], [0.1, f * 0.4]], a: 0.008, hold: 0.04, dur: 0.06, vol: vol * 0.35, filter: lp(500) }),
+    );
+    return mx(syl(0, 150, 0.32), syl(0.13, 138, 0.26), syl(0.26, 124, 0.22));
+  },
   bossCharge: (c, o, t) => mx(
     tone(c, o, t, { type: 'sawtooth', f: 70, f2: 420, glide: 0.9, a: 0.05, hold: 0.7, dur: 0.2, vol: 0.2, shape: 20, filter: lp(300, 3000, 6, 0.9) }),
     noise(c, o, t, { a: 0.05, hold: 0.7, dur: 0.2, vol: 0.3, filter: lp(200, 1200, 1, 0.9) }),

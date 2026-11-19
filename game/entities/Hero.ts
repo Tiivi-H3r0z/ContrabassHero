@@ -73,6 +73,11 @@ export class Hero {
   attackTag = 0;
   invulnerableSpecial = false;
   speedBoost = 1;
+  // rhythm step: a short burst usable while the big dash recharges (dash at the 16th note)
+  private stepT = 0;
+  stepping() { return this.stepT > 0; }
+  // set by the groove driver for the current tick when the press was in rhythm
+  rhythmPress: 'f' | 'F' | 'D' | null = null;
   flow = { enemy: null as Enemy | null, boss: false, move: MOVES.jab as FlowMove, lunge: false, t: 0, lungeDur: 0, from: new THREE.Vector3(), to: new THREE.Vector3(), hitsDone: 0, queued: false, speed: 1 };
   private flowChain = 0;
   private lastFlowAt = -9;
@@ -251,7 +256,8 @@ export class Hero {
     f.t = 0;
     f.hitsDone = 0;
     f.queued = false;
-    f.speed = music.beatError() < 0.11 ? 1.2 : 1;
+    // in rhythm: the move snaps out so the impact lands on the note you played
+    f.speed = this.rhythmPress ? 1.7 : music.beatError() < Math.min(0.11, music.beatInterval() * 0.2) ? 1.2 : 1;
     this.spinExtra = 0;
     this.state = 'flow';
     this.stateT = 0;
@@ -264,7 +270,7 @@ export class Hero {
       f.to.copy(tgt.pos).addScaledVector(toT, -stand).setY(0);
       const R = g.arenaRadius - 1;
       if (f.to.length() > R) f.to.setLength(R);
-      f.lungeDur = Math.min(0.2, Math.max(0.07, dist / 50));
+      f.lungeDur = Math.min(0.2, Math.max(0.07, dist / 50)) * (this.rhythmPress ? 0.45 : 1);
       this.iframes = Math.max(this.iframes, f.lungeDur + 0.08);
       this.fwd.set(0.6);
       this.sq.set(-0.2);
@@ -347,7 +353,7 @@ export class Hero {
     while (f.hitsDone < mv.hits.length && f.t >= at * mv.hits[f.hitsDone]) { this.flowHit(f.hitsDone === mv.hits.length - 1); f.hitsDone++; }
     const holding = g.diff.holdCombo && inp.held('attack');
     if ((inp.pressed('attack') || holding) && f.t > at * 0.45) f.queued = true;
-    if (f.t > at && inp.pressed('dash')) { if (!this.tryCounter() && this.dashCd <= 0) this.startDash(md); return; }
+    if (f.t > at && inp.pressed('dash')) { if (!this.tryCounter()) { if (this.dashCd <= 0) this.startDash(md); else this.step(md); } return; }
     if (f.t > at && inp.pressed('jump') && this.y <= 0.01) { this.state = 'move'; this.vy = 17; this.y = 0.01; this.sq.set(-0.42); audio.play('jump'); return; }
     if (f.t > at && inp.pressed('heavy')) { if (!g.finales.tryStart()) this.flowAttack(md, true); return; }
     if (f.t >= dur) {
@@ -401,17 +407,22 @@ export class Hero {
   }
 
   update(dt: number) {
+    try { this.updateInner(dt); } finally { this.rhythmPress = null; }
+  }
+
+  private updateInner(dt: number) {
     const g = this.game;
     const inp = g.input;
     this.stateT += dt;
     this.iframes = Math.max(0, this.iframes - dt);
     this.dashCd = Math.max(0, this.dashCd - dt);
+    this.stepT = Math.max(0, this.stepT - dt);
     this.comboWindow = Math.max(0, this.comboWindow - dt);
     const R = g.arenaRadius;
     const md = this.moveDir(new THREE.Vector3());
     const moving = md.lengthSq() > 0.01;
     const grounded = this.y <= 0.001;
-    const baseSpeed = 15 * this.mods.speed * this.speedBoost;
+    const baseSpeed = 15 * this.mods.speed * this.speedBoost * (g.groove?.speedMul() ?? 1);
 
     if (this.dead) {
       this.vel.multiplyScalar(Math.pow(0.01, dt));
@@ -441,18 +452,20 @@ export class Hero {
     // State machine
     switch (this.state) {
       case 'move': {
-        const k = 1 - Math.pow(grounded ? 0.00002 : 0.02, dt);
+        const k = this.stepT > 0 ? 0 : 1 - Math.pow(grounded ? 0.00002 : 0.02, dt);
         this.vel.x += (md.x * baseSpeed - this.vel.x) * k;
         this.vel.z += (md.z * baseSpeed - this.vel.z) * k;
         if (moving) this.turnTo(Math.atan2(md.x, md.z), dt, 22);
         if (grounded && inp.pressed('jump')) this.jump();
         else if (inp.pressed('dash') && this.tryCounter()) { /* counter */ }
-        else if (inp.pressed('dash') && this.dashCd <= 0) this.startDash(md);
+        else if (inp.pressed('dash')) { if (this.dashCd <= 0) this.startDash(md); else this.step(md); }
         else if (inp.pressed('attack') || (g.diff.holdCombo && inp.held('attack') && grounded)) {
           if (!grounded && !this.airAttacked) this.startSmash();
           else if (grounded) this.flowAttack(md);
         } else if (inp.pressed('heavy') && grounded && g.finales.tryStart()) {
           // finale started
+        } else if (inp.pressed('heavy') && grounded && this.rhythmPress === 'F') {
+          this.flowAttack(md, true);
         } else if (inp.pressed('heavy') && grounded) {
           this.state = 'heavy'; this.stateT = 0; this.heavyCharge = 0;
           audio.play('charge');
@@ -470,7 +483,7 @@ export class Hero {
         if (moving && this.stateT < at) this.turnTo(Math.atan2(md.x, md.z), dt, 30);
         if (!this.struck && this.stateT >= at) { this.struck = true; this.strike(st); }
         if ((inp.pressed('attack') || (g.diff.holdCombo && inp.held('attack'))) && this.stateT > at * 0.6) this.queued = true;
-        if (inp.pressed('dash') && this.dashCd <= 0 && this.struck) { this.startDash(md); break; }
+        if (inp.pressed('dash') && this.struck) { if (this.dashCd <= 0) this.startDash(md); else this.step(md); break; }
         if (inp.pressed('jump') && this.struck) { this.jump(); break; }
         if (this.stateT >= dur) {
           if (this.queued && this.comboStep < STEPS.length - 1) this.startStep(this.comboStep + 1);
@@ -516,6 +529,7 @@ export class Hero {
         break;
       }
       case 'dash': {
+        if (inp.pressed('dash') && this.stateT > 0.07) { this.step(md); break; }
         if (this.stateT > 0.17) {
           this.state = 'move';
           this.vel.multiplyScalar(0.35);
@@ -619,6 +633,33 @@ export class Hero {
     this.game.fx.ring(this.pos, PAL.bone, 0.3, 1.6, 0.2, 1);
   }
 
+  // Galop: the heavy hit becomes a charge (a long dash toward the nearest teacher / forward).
+  charge() {
+    const t = this.game.autoTarget(this.pos, 12);
+    if (t) this.dashDir.set(t.x - this.pos.x, 0, t.z - this.pos.z).normalize();
+    else this.dashDir.set(Math.sin(this.facing), 0, Math.cos(this.facing));
+    this.facing = Math.atan2(this.dashDir.x, this.dashDir.z);
+    this.state = 'dash';
+    this.stateT = 0;
+    this.iframes = Math.max(this.iframes, 0.3);
+    this.fwd.set(0.7);
+    this.sq.set(0.2);
+  }
+
+  private step(md: THREE.Vector3) {
+    const dir = md.lengthSq() > 0.01 ? md.clone().normalize() : new THREE.Vector3(Math.sin(this.facing), 0, Math.cos(this.facing));
+    this.state = 'move';
+    this.stateT = 0;
+    this.facing = Math.atan2(dir.x, dir.z);
+    this.vel.copy(dir).multiplyScalar(26);
+    this.stepT = 0.08;
+    this.sq.set(0.1);
+    this.fwd.set(0.3);
+    this.iframes = Math.max(this.iframes, 0.08);
+    audio.play('dash', { pitch: 1.35, volume: 0.45 });
+    this.game.fx.burst(this.pos.clone().setY(1.2), this.color, 3, 4, { size: 0.4, life: 0.2, grav: 0 });
+  }
+
   private startDash(md: THREE.Vector3) {
     this.state = 'dash';
     this.stateT = 0;
@@ -709,6 +750,8 @@ export class Hero {
     this.sq.update(dt);
     this.fwd.update(dt);
     this.root.position.set(this.pos.x, this.y, this.pos.z);
+    this.root.scale.setScalar(this.game.groove?.tierScale() ?? 1);
+    if (this.state === 'dash' || this.stepT > 0) this.game.groove?.trail();
     const blink = this.iframes > 0 && this.state !== 'dash' && !this.dead && Math.floor(t * 18) % 2 === 0;
     this.root.visible = !blink;
     this.rig.mat.userData.flash.value = this.state === 'heavy' ? this.heavyCharge * 0.35 * (0.6 + 0.4 * Math.sin(t * 30)) : 0;

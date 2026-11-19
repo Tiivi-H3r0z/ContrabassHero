@@ -31,6 +31,9 @@ export class Input {
   private down = new Set<string>();
   private pending = new Set<string>();
   private pressedKeys = new Set<string>();
+  // performance.now() of each key press, for rhythm judgement finer than the 60 Hz tick
+  private pendingAt = new Map<string, number>();
+  private pressedAt = new Map<string, number>();
   private padPrev: boolean[] = [];
   private padNow: boolean[] = [];
   private touchPressed = new Set<Action>();
@@ -51,7 +54,7 @@ export class Input {
     const k = normKey(e.key);
     if (k === 'escape' || k === 'p') { this.pendingPause = true; return; }
     if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) e.preventDefault();
-    if (!e.repeat) this.pending.add(k);
+    if (!e.repeat) { this.pending.add(k); if (!this.pendingAt.has(k)) this.pendingAt.set(k, e.timeStamp || performance.now()); }
     this.down.add(k);
     this.usingPad = false;
   };
@@ -61,6 +64,8 @@ export class Input {
   // Call once per fixed tick.
   poll() {
     this.pressedKeys = this.pending;
+    this.pressedAt = this.pendingAt;
+    this.pendingAt = new Map();
     this.touchPressed = touch.consume();
     if (touch.pause) { touch.pause = false; this.pendingPause = true; }
     this.pending = new Set();
@@ -110,6 +115,13 @@ export class Input {
     if (this.touchPressed.has(a)) return true;
     if (this.keys[a].some((k) => this.pressedKeys.has(k))) return true;
     return (PAD[a] ?? []).some((i) => this.padNow[i] && !this.padPrev[i]);
+  }
+
+  // When the action was pressed this tick (key event time), now for pads / touch.
+  pressTime(a: Action) {
+    let t = Infinity;
+    for (const k of this.keys[a]) { const v = this.pressedAt.get(k); if (v !== undefined && v < t) t = v; }
+    return t === Infinity ? performance.now() : t;
   }
 
   anyConfirm() {

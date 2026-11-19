@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Game, GameCallbacks } from '../game/Game';
+import { music } from '../game/audio/music';
 import type { HudStore } from '../game/core/hudStore';
 import type { GameSettings, RunState } from '../types';
 
@@ -26,7 +27,8 @@ export const GameView: React.FC<Props> = ({ run, settings, paused, hud, callback
       onPauseRequest: () => cb.current.onPauseRequest(),
     });
     game.current = g;
-    (window as unknown as { __game?: Game }).__game = g;
+    (window as unknown as { __game?: Game; __music?: typeof music }).__game = g;
+    (window as unknown as { __music?: typeof music }).__music = music;
     return () => { g.dispose(); game.current = null; };
   }, []);
 

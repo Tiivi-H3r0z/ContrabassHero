@@ -44,7 +44,7 @@ export class Director {
     this.spawnT -= dt;
     const alive = g.enemies.list.length;
     const remaining = g.quota - g.stageKills;
-    if (g.phase === 'horde' && remaining - alive <= 0) return;
+    if (g.phase === 'horde' && !g.timed && remaining - alive <= 0) return;
     if (this.spawnT > 0 || alive >= this.maxAlive()) return;
     this.spawnT = g.phase === 'boss' ? 2.2 : Math.max(0.3, 0.8 - g.stageNum * 0.05);
     const n = g.phase === 'boss' ? 1 + Math.floor(Math.random() * 2) : 3 + Math.floor(Math.random() * (3 + g.stageNum * 0.6));
@@ -52,7 +52,7 @@ export class Director {
     const R = g.arenaRadius;
     let spawned = 0;
     for (let i = 0; i < n; i++) {
-      if (g.phase === 'horde' && g.quota - g.stageKills - g.enemies.list.length <= 0) break;
+      if (g.phase === 'horde' && !g.timed && g.quota - g.stageKills - g.enemies.list.length <= 0) break;
       const a = base + (i - n / 2) * 0.13;
       const at = new THREE.Vector3(Math.cos(a) * (R - 0.8), 0, Math.sin(a) * (R - 0.8));
       if (at.distanceTo(g.hero.pos) < 6) continue;

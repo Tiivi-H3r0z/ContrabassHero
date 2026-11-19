@@ -37,7 +37,7 @@ const MenuButtons: React.FC<{ items: { label: string; kind?: 'sec' | 'dng'; acti
   );
 };
 
-export const TitleScreen: React.FC<{ onPlay: () => void; onOptions: () => void; enabled: boolean; difficulty: string; onDifficulty: () => void }> = ({ onPlay, onOptions, enabled, difficulty, onDifficulty }) => {
+export const TitleScreen: React.FC<{ onPlay: () => void; onOptions: () => void; onMoves: () => void; onCalib: () => void; calibDone: boolean; enabled: boolean; difficulty: string; onDifficulty: () => void }> = ({ onPlay, onOptions, onMoves, onCalib, calibDone, enabled, difficulty, onDifficulty }) => {
   const [armed, setArmed] = useState(false);
   useEffect(() => {
     if (armed) return;
@@ -62,7 +62,7 @@ export const TitleScreen: React.FC<{ onPlay: () => void; onOptions: () => void; 
         <span className="stamp">ÉDITION CARNAGE</span>
         <p className="pitch">Six gamins. Six instruments. <b>Le conservatoire va saigner de l'encre.</b></p>
         {armed ? (
-          <MenuButtons enabled={enabled} items={[{ label: 'JOUER', action: onPlay }, { label: `MODE : ${difficulty}`, kind: 'sec', action: onDifficulty }, { label: 'OPTIONS', kind: 'sec', action: onOptions }, { label: 'VERSIONS', kind: 'sec', action: () => { location.href = location.pathname; } }]} />
+          <MenuButtons enabled={enabled} items={[{ label: 'JOUER', action: onPlay }, { label: `MODE : ${difficulty}`, kind: 'sec', action: onDifficulty }, { label: calibDone ? 'CALAGE DU RYTHME' : 'CALAGE DU RYTHME · À FAIRE', kind: calibDone ? 'sec' : undefined, action: onCalib }, { label: 'LISTE DES COUPS', kind: 'sec', action: onMoves }, { label: 'OPTIONS', kind: 'sec', action: onOptions }, { label: 'VERSIONS', kind: 'sec', action: () => { location.href = location.pathname; } }]} />
         ) : (
           <div className="press">APPUIE SUR UNE TOUCHE</div>
         )}
@@ -119,13 +119,13 @@ const ACTION_LABELS: Record<Action, string> = { up: 'Haut', down: 'Bas', left: '
 
 export const OptionsScreen: React.FC<{ settings: GameSettings; onChange: (s: GameSettings) => void; onClose: () => void }> = ({ settings, onChange, onClose }) => {
   const actions = Object.keys(ACTION_LABELS) as Action[];
-  const rows = ['master', 'music', 'sfx', 'shake', 'flashes', ...actions, 'reset', 'close'];
+  const rows = ['master', 'music', 'sfx', 'shake', 'flashes', 'beatFx', ...actions, 'reset', 'close'];
   const [i, setI] = useState(0);
   const [waiting, setWaiting] = useState<Action | null>(null);
   const vol = (k: 'master' | 'music' | 'sfx', d: number) => onChange({ ...settings, [k]: Math.max(0, Math.min(1, Math.round((settings[k] + d) * 20) / 20)) });
   const activate = (k: number) => {
     const r = rows[k];
-    if (r === 'shake' || r === 'flashes') onChange({ ...settings, [r]: !settings[r] });
+    if (r === 'shake' || r === 'flashes' || r === 'beatFx') onChange({ ...settings, [r]: !settings[r] });
     else if (r === 'reset') onChange({ ...settings, keys: DEFAULT_KEYS });
     else if (r === 'close') onClose();
     else if ((actions as string[]).includes(r)) setWaiting(r as Action);
@@ -159,9 +159,9 @@ export const OptionsScreen: React.FC<{ settings: GameSettings; onChange: (s: Gam
             <span className="val">{Math.round(settings[k] * 100)}</span>
           </div>
         ))}
-        {(['shake', 'flashes'] as const).map((k, n) => (
+        {(['shake', 'flashes', 'beatFx'] as const).map((k, n) => (
           <div className={row(3 + n)} key={k} onMouseEnter={() => setI(3 + n)}>
-            <span className="label">{k === 'shake' ? 'Tremblement' : "Flashs d'impact"}</span>
+            <span className="label">{k === 'shake' ? 'Tremblement' : k === 'flashes' ? "Flashs d'impact" : 'Pulsation sur le kick'}</span>
             <button className={`toggle ${settings[k] ? 'on' : ''}`} onClick={() => activate(3 + n)}>{settings[k] ? 'OUI' : 'NON'}</button>
             <span />
           </div>
@@ -169,7 +169,7 @@ export const OptionsScreen: React.FC<{ settings: GameSettings; onChange: (s: Gam
         <div className="label" style={{ marginTop: 14 }}>Touches (la manette est toujours active)</div>
         <div className="keys">
           {actions.map((a, n) => (
-            <button key={a} className={`keybtn ${waiting === a ? 'wait' : ''}`} style={i === 5 + n ? { borderColor: 'var(--reward)' } : undefined} onMouseEnter={() => setI(5 + n)} onClick={() => setWaiting(a)}>
+            <button key={a} className={`keybtn ${waiting === a ? 'wait' : ''}`} style={i === 6 + n ? { borderColor: 'var(--reward)' } : undefined} onMouseEnter={() => setI(6 + n)} onClick={() => setWaiting(a)}>
               <span>{ACTION_LABELS[a]}</span>
               <span className="kbd">{waiting === a ? '…' : settings.keys[a].map(keyLabel).join(' / ')}</span>
             </button>
@@ -184,11 +184,11 @@ export const OptionsScreen: React.FC<{ settings: GameSettings; onChange: (s: Gam
   );
 };
 
-export const PauseScreen: React.FC<{ onResume: () => void; onOptions: () => void; onQuit: () => void; enabled: boolean }> = ({ onResume, onOptions, onQuit, enabled }) => (
+export const PauseScreen: React.FC<{ onResume: () => void; onOptions: () => void; onMoves: () => void; onCalib: () => void; onQuit: () => void; enabled: boolean }> = ({ onResume, onOptions, onMoves, onCalib, onQuit, enabled }) => (
   <div className="modal-back fadein">
     <div className="panel" style={{ padding: '28px 40px 34px' }}>
       <h2 className="shout" style={{ fontSize: 56, margin: '0 0 20px', color: 'var(--ui)' }}>PAUSE</h2>
-      <MenuButtons enabled={enabled} onBack={onResume} items={[{ label: 'REPRENDRE', action: onResume }, { label: 'OPTIONS', kind: 'sec', action: onOptions }, { label: 'ABANDONNER', kind: 'dng', action: onQuit }]} />
+      <MenuButtons enabled={enabled} onBack={onResume} items={[{ label: 'REPRENDRE', action: onResume }, { label: 'LISTE DES COUPS', kind: 'sec', action: onMoves }, { label: 'CALAGE DU RYTHME', kind: 'sec', action: onCalib }, { label: 'OPTIONS', kind: 'sec', action: onOptions }, { label: 'ABANDONNER', kind: 'dng', action: onQuit }]} />
     </div>
   </div>
 );

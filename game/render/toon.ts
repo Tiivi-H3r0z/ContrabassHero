@@ -18,7 +18,7 @@ export const toonGradient = () => {
 export type ToonMaterial = THREE.MeshToonMaterial & { userData: { flash: { value: number } } };
 
 // Toon material reading per-vertex color + per-vertex emissive ("emis" attribute, linear HDR),
-// with a white hit flash: uniform for single meshes, per-instance attribute "iFlash" for InstancedMesh.
+// with a red hit flash (keeps shading so the silhouette stays readable): uniform for single meshes, per-instance attribute "iFlash" for InstancedMesh.
 export const makeToonMaterial = (opts: { map?: THREE.Texture; vertexColors?: boolean; color?: THREE.ColorRepresentation; transparent?: boolean } = {}): ToonMaterial => {
   const vertexColors = opts.vertexColors ?? !opts.map;
   const mat = new THREE.MeshToonMaterial({
@@ -61,7 +61,9 @@ uniform float uFlash;`)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
 gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.012, 0.025, 0.035), clamp(vInk, 0.0, 0.82));
 gl_FragColor.rgb += vEmis;
-gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.6), clamp(max(vFlash, uFlash), 0.0, 1.0));`);
+float fl = clamp(max(vFlash, uFlash), 0.0, 1.0);
+float lumF = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
+gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(2.3, 0.07, 0.05) * (0.35 + 1.1 * lumF), fl * 0.88);`);
   };
   mat.customProgramCacheKey = () => (vertexColors ? 'toon-vc' : 'toon-map');
   return mat;

@@ -41,6 +41,13 @@ export interface HudState {
   finale: FinaleView | null;
   finalePrompt: boolean;
   stamp: { id: number; text: string } | null;
+  groove: number;
+  grooveTier: number;
+  grooveMotif: string;
+  grooveBuffs: string;
+  grooveStill: boolean;
+  bossIn: number;
+  bossProgress: number;
 }
 
 type Listener = () => void;
